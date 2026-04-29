@@ -1,94 +1,191 @@
+// item.cpp
 #include "item.h"
-#include "types.h"
+#include "player.h"
 #include <iostream>
-#include <string>
+#include <unordered_set>
 #include <iomanip>
+#include <random>
 
-// Default constructor
-Item::Item()
-    : name(""), type(POTION), rarity(LOW),
-      price(0), effectValue(0.0),
-      isConsumed(false) {}
+std::unordered_map<int, ItemData> itemDatabase;
+std::mt19937 gen(std::random_device{}());
+std::uniform_int_distribution<> int_dist(0, 30);
 
-// Parameterized constructor
-Item::Item(const std::string name, ItemType type, ItemRarity rarity,
-           int cost, float effect, bool consumed)
-    : name(name), type(type), rarity(rarity),
-      price(cost), effectValue(effect),
-      isConsumed(consumed) {}
+void initItemDatabase() {}
 
-// Get name of item
+Item::Item() : id(0) {}
+
+Item::Item(int id) : id(id) {
+    if (itemDatabase.find(id) != itemDatabase.end()) {
+        return;
+    }
+    
+    std::mt19937 rng(id); 
+    std::uniform_int_distribution<int> typeDist(0, 2);
+    std::uniform_int_distribution<int> rarityDist(0, 2);
+
+    
+    ItemType type = static_cast<ItemType>(typeDist(rng));
+    
+    int rarity = static_cast<int>(rarityDist(rng));
+    
+    int price;
+    float effectValue;
+    
+    std::string name;
+    switch (type) {
+        case POTION:
+            if(ItemRarity(rarity) == LOW) {
+                effectValue = (int_dist(rng) + 10)/2;
+                price = (int_dist(rng) + 50)*0.2;
+                name = lowPotion[id % 7];
+            }
+            else if(ItemRarity(rarity) == MEDIUM) {
+                effectValue = (int_dist(rng) + 50)/2;
+                price = (int_dist(rng) + 100)*0.5;
+                name = mediumPotion[id % 7];
+            }
+            else {
+                effectValue = (int_dist(rng) + 100)/2;
+                price = (int_dist(rng) + 200);
+                name = highPotion[id % 10];
+            }
+            break;
+        case WEAPON:
+            if(ItemRarity(rarity) == LOW) {
+                effectValue = (int_dist(rng) + 10);
+                price = (int_dist(rng) + 10)*0.1;
+                name = LOW_WEAPON_NAMES[id % 10];
+            }
+            else if(ItemRarity(rarity) == MEDIUM) {
+                effectValue = (int_dist(rng) + 50);
+                price = (int_dist(rng) + 50)*0.15;
+                name = MEDIUM_WEAPON_NAMES[id % 10];
+            }
+            else {
+                effectValue = (int_dist(rng) + 100);
+                price = (int_dist(rng) + 100)*0.2;
+                name = HIGH_WEAPON_NAMES[id % 10];
+            }
+            break;
+        case ARMOR:
+            if(ItemRarity(rarity) == LOW) {
+                effectValue = (int_dist(rng) + 10);
+                price = (int_dist(rng) + 10)*0.1;
+                name = LOW_ARMOR_NAMES[id % 10];
+            }
+            else if(ItemRarity(rarity) == MEDIUM) {
+                effectValue = (int_dist(rng) + 50);
+                price = (int_dist(rng) + 50)*0.15;
+                name = MEDIUM_ARMOR_NAMES[id % 10];
+            }
+            else {
+                effectValue = (int_dist(rng) + 100);
+                price = (int_dist(rng) + 100)*0.2;
+                name = HIGH_ARMOR_NAMES[id % 10];
+            }
+            break;
+    }
+    
+    itemDatabase[id] = {name, type, ItemRarity(rarity), effectValue, price, false};
+}
+
+
+int Item::getId() const { return id; }
+
 std::string Item::getName() const {
-    return name;
+    auto it = itemDatabase.find(id);
+    return it != itemDatabase.end() ? it->second.name : "";
 }
 
-// Get item type (CONSUMABLE, WEAPON, ARMOR)
 ItemType Item::getType() const {
-    return type;
+    auto it = itemDatabase.find(id);
+    return it != itemDatabase.end() ? it->second.type : POTION;
 }
 
-// Get item rarity (LOW, MEDIUM, HIGH)
 ItemRarity Item::getRarity() const {
-    return rarity;
-}
-
-// Get item price
-int Item::getPrice() const {
-    return price;
+    auto it = itemDatabase.find(id);
+    return it != itemDatabase.end() ? it->second.rarity : LOW;
 }
 
 float Item::getEffectValue() const {
-    return effectValue;
+    auto it = itemDatabase.find(id);
+    return it != itemDatabase.end() ? it->second.effectValue : 0.0f;
 }
 
-// Check if item is consumed
+int Item::getPrice() const {
+    auto it = itemDatabase.find(id);
+    return it != itemDatabase.end() ? it->second.price : 0;
+}
+
 bool Item::getIsConsumed() const {
-    return isConsumed;
+    auto it = itemDatabase.find(id);
+    return it != itemDatabase.end() ? it->second.isConsumed : false;
 }
 
-// Set consume state
 void Item::setIsConsumed(bool state) {
-    isConsumed = state;
+    auto it = itemDatabase.find(id);
+    if (it != itemDatabase.end()) {
+        it->second.isConsumed = state;
+    }
 }
 
-// Display item information
 void Item::displayItemInfo() const {
+    auto it = itemDatabase.find(id);
+    if (it == itemDatabase.end()) {
+        std::cout << "Invalid item!" << std::endl;
+        return;
+    }
+    
+    const auto& data = it->second;
     std::cout << std::left;
-    std::cout << "Item: " + name;
-    std::cout << std::setw(20) << "Type: ";
-
-    // Display type
-    switch (type) {
+    std::cout << "Item: " << data.name << std::endl;
+    
+    std::cout << "Type: ";
+    switch (data.type) {
         case POTION: std::cout << "POTION"; break;
         case WEAPON: std::cout << "WEAPON"; break;
         case ARMOR: std::cout << "ARMOR"; break;
-        default: std::cout << "Unknown"; break;
     }
-
-    std::cout << std::setw(35) <<"Rarity: ";
-
-    // Display rarity
-    switch (rarity) {
+    std::cout << std::endl;
+    
+    std::cout << "Rarity: ";
+    switch (data.rarity) {
         case LOW: std::cout << "Low"; break;
         case MEDIUM: std::cout << "Medium"; break;
         case HIGH: std::cout << "High"; break;
-        default: std::cout << "Unknown"; break;
     }
-
-    std::cout << std::setw(50) << "Price: " + std::to_string(price) << std::setw(60);
-    switch (type) {
-        case POTION: std::cout << "Heal: " << effectValue << "\n"; break;
-        case WEAPON: std::cout << "Attack: " << effectValue << "\n"; break;
-        case ARMOR: std::cout << "Defense: " << effectValue << "\n"; break;
-        default: std::cout << "Unknown"; break;
-    }
+    std::cout << std::endl;
     
+    std::cout << "Price: " << data.price << std::endl;
+    
+    std::cout << "Effect: ";
+    switch (data.type) {
+        case POTION: std::cout << "Heal " << data.effectValue; break;
+        case WEAPON: std::cout << "Attack +" << data.effectValue; break;
+        case ARMOR: std::cout << "Defense +" << data.effectValue; break;
+    }
+    std::cout << std::endl;
+}
+
+void Item::applyEffect(Player& player) {
+    auto it = itemDatabase.find(id);
+    if (it == itemDatabase.end()) return;
+    
+    const auto& data = it->second;
+    switch (data.type) {
+        case POTION:
+            player.change_HP(data.effectValue);
+            break;
+        case WEAPON:
+            player.change_ATK(data.effectValue);
+            break;
+        case ARMOR:
+            player.change_DEF(data.effectValue);
+            break;
+    }
+    setIsConsumed(true);
 }
 
 bool Item::operator==(const Item& other) const {
-    return name == other.name &&
-           type == other.type &&
-           rarity == other.rarity &&
-           price == other.price &&
-           effectValue == other.effectValue;
+    return id == other.id;
 }

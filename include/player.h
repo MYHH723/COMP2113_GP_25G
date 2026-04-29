@@ -6,7 +6,7 @@
 #include <list>
 #include <vector>
 #include "item.h"
-#include <nlohmann/json.hpp>
+#include "third_party/json/single_include/nlohmann/json.hpp"
 
 // Player class - manages player character attributes and inventory
 class Player {
@@ -14,11 +14,10 @@ private:
     std::string playerName;
     std::map<std::string, float> state;  // Stores level, ATK, DEF, HP, EXP, Money
     Inventory* inventory;
-    std::map<std::string, std::string> equippedItems; 
+    std::map<std::string, int> equippedItems; 
+    float score;
     float maxHP; 
     bool isAlive;
-    bool isPoisoned;
-    bool isStunned;
 
 public:
     Player();
@@ -36,8 +35,7 @@ public:
     float get_maxHP() const;
     Inventory* get_inventory() const { return inventory; }
     bool get_isAlive() const;
-    bool get_isPoisoned() const;
-    bool get_isStunned() const;
+    float get_score() const;
 
     // Setters / State modifiers
     void change_state(const std::string& key, float value);
@@ -46,23 +44,21 @@ public:
     void change_HP(float amount);
     void change_EXP(float amount);
     void change_Money(float amount);
+    void change_score(float amount);
     void set_isAlive(bool alive);
-    void set_isPoisoned(bool poisoned);
-    void set_isStunned(bool stunned);
+
 
     // Inventory operations
-    void add_item(const std::string& itemName);
-    void remove_item(const std::string& itemName);
-    void use_item(const std::string& itemName);
+    void add_item(const int id);
+    void remove_item(const int id);
+    void use_item(const int id);
     void sort_items();
     std::string itemToString(const Item& item);
-    std::list<std::string> get_all_items() const;
+    std::list<int> get_all_items() const;
 
     // Other methods
-    void equip_weapon(const std::string& itemName);
-    void equip_armor(const std::string& itemName);
+    void equip(const int id);
     void level_up();
-    float Player::parseEffectValue(const std::string& itemStr) const;
     nlohmann::json toJson() const;
     void fromJson(const nlohmann::json& j);
 
@@ -72,20 +68,20 @@ public:
 // Inventory class - manages items
 class Inventory {
 private:
-    std::list<std::string> items;
+    std::list<int> items;
     int capacity;
 
 public:
     Inventory();
     ~Inventory();
 
-    const std::list<std::string>& get_items() const { return items; }
+    const std::list<int>& get_items() const { return items; }
     void clear_items() { items.clear(); }
-    bool add_item(const std::string& itemName);
-    bool remove_item(const std::string& itemName);
-    bool use_item(const std::string& itemName);
+    bool add_item(const int id);
+    bool remove_item(const int id);
+    bool use_item(const int id);
     void sort_items();
-    std::string get_item(const std::string& itemName);
+    int get_item(const int id);
     int get_capacity() const;
     int get_current_size() const;
 };
@@ -97,6 +93,5 @@ const float DEFAULT_HP = 100.0f;
 const float DEFAULT_EXP = 0.0f;
 const float DEFAULT_MONEY = 100.0f;
 const int MAX_INVENTORY_SIZE = 20;
-const std::string SAVE_FILE = "save.json";
 
 #endif // PLAYER_H

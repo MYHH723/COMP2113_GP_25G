@@ -20,8 +20,7 @@ void ConsoleUI::showPlayerStatus(const Player &player)
     std::cout << "EXP: " << player.get_EXP() << "\n";
     std::cout << "Money: " << player.get_Money() << "\n";
     std::cout << "Alive: " << (player.get_isAlive() ? "Yes" : "No") << "\n";
-    std::cout << "Poisoned: " << (player.get_isPoisoned() ? "Yes" : "No") << "\n";
-    std::cout << "Stunned: " << (player.get_isStunned() ? "Yes" : "No") << "\n";
+    std::cout << "Score: " << player.get_score() << "\n";
 }
 
 void ConsoleUI::showInventory(const Player &player)
