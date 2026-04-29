@@ -48,7 +48,7 @@ bool Shop::buyItem(ItemType type, int grade) {
         return false;
     }
 
-    if (!merchant->hasItem(type, grade)) {
+    if (!merchant->hasItem(type)) {
         std::cout << "[Shop] Item not available." << std::endl;
         return false;
     }
@@ -60,7 +60,7 @@ bool Shop::buyItem(ItemType type, int grade) {
     if (diff == 1) priceMultiplier = 1.0f;
     if (diff == 2) priceMultiplier = 1.3f;
 
-    Item item = merchant->getItem(type, grade);
+    Item item = merchant->getItem(type);
     int basePrice = item.getPrice();
     int finalPrice = static_cast<int>(basePrice * priceMultiplier);
 
@@ -75,15 +75,15 @@ bool Shop::buyItem(ItemType type, int grade) {
     }
 
     player->change_Money(-finalPrice);
-    std::string itemName = item.getName();
-    inventory->add_item(itemName);
+    int id = item.getId();
+    inventory->add_item(id);
 
     GameLogger logger;
     logger.initLogFile();
     logger.logTransaction("BUY", type, grade, finalPrice);
     logger.closeLogFile();
 
-    std::cout << "[Shop] Buy success: " << itemName << " Cost: " << finalPrice << " gold" << std::endl;
+    std::cout << "[Shop] Buy success: " << item.getName() << " Cost: " << finalPrice << " gold" << std::endl;
     return true;
 }
 
@@ -99,12 +99,12 @@ bool Shop::sellItem(ItemType type, int grade) {
         return false;
     }
 
-    Item item = merchant->getItem(type, grade);
-    std::string itemName = item.getName();
+    Item item = merchant->getItem(type);
+    int itemId = item.getId();
 
     bool hasItem = false;
-    for (const std::string& name : inventory->get_items()) {
-        if (name == itemName) {
+    for (const int& id : inventory->get_items()) {
+        if (id == itemId) {
             hasItem = true;
             break;
         }
@@ -124,7 +124,7 @@ bool Shop::sellItem(ItemType type, int grade) {
 
     int sellPrice = static_cast<int>(item.getPrice() * sellMulti);
 
-    inventory->remove_item(itemName);
+    inventory->remove_item(itemId);
     player->change_Money(sellPrice);
 
     GameLogger logger;
@@ -132,7 +132,7 @@ bool Shop::sellItem(ItemType type, int grade) {
     logger.logTransaction("SELL", type, grade, sellPrice);
     logger.closeLogFile();
 
-    std::cout << "[Shop] Sell success: " << itemName << " Earned: " << sellPrice << " gold" << std::endl;
+    std::cout << "[Shop] Sell success: " << item.getName() << " Earned: " << sellPrice << " gold" << std::endl;
     return true;
 }
 

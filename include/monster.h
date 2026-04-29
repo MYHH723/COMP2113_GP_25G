@@ -16,6 +16,7 @@ private:
     int def;
     int exp_reward;
     int gold_reward;
+    float score_reward;
     int level;
     bool isAlive;
 
@@ -34,6 +35,7 @@ public:
     int getDEF() const;
     int getExpReward() const;
     int getGoldReward() const;
+    float getScoreReward() const;
     int getLevel() const;
     bool get_isAlive() const;
 

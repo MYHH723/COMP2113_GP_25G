@@ -9,6 +9,7 @@
 
 void Game::saveGame() {
     json saveData;
+    saveData["Seed"] = seed;
     saveData["difficulty"] = difficulty;
     saveData["totalRooms"] = totalRooms;
     saveData["currentRoom"] = currentRoomIndex;
@@ -52,7 +53,7 @@ void Game::loadGame() {
 
     // Recreate map generator and rooms
     delete mapGen;
-    mapGen = new MapGenerator();
+    mapGen = new MapGenerator(seed);
     mapGen->initMapGenerator(totalRooms, difficulty);
     mapGen->generateMap();   // Note: room contents may differ from saved state
     rooms = mapGen->getGeneratedRooms();

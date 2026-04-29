@@ -32,6 +32,7 @@ void Monster::initMonster(int difficulty, int monsterLevel) {
         def = static_cast<int>(2 * difficultyMultiplier);
         exp_reward = 10 + level * 5;
         gold_reward = 5 + level * 3;
+        score_reward = 1.0f + level * 0.5f;
     } else if (level <= 4) {
         name = "Skeleton Warrior";
         maxHp = static_cast<int>(40 * difficultyMultiplier * (1 + 0.1 * level));
@@ -39,6 +40,7 @@ void Monster::initMonster(int difficulty, int monsterLevel) {
         def = static_cast<int>(3 * difficultyMultiplier);
         exp_reward = 15 + level * 5;
         gold_reward = 8 + level * 3;
+        score_reward = 2.0f + level * 1.0f;
     } else if (level <= 6) {
         name = "Dark Mage";
         maxHp = static_cast<int>(35 * difficultyMultiplier * (1 + 0.1 * level));
@@ -46,6 +48,7 @@ void Monster::initMonster(int difficulty, int monsterLevel) {
         def = static_cast<int>(1 * difficultyMultiplier);
         exp_reward = 20 + level * 5;
         gold_reward = 10 + level * 3;
+        score_reward = 4.0f + level * 2.0f;
     } else {
         name = "Dungeon Lord";
         maxHp = static_cast<int>(100 * difficultyMultiplier * (1 + 0.1 * level));
@@ -53,6 +56,7 @@ void Monster::initMonster(int difficulty, int monsterLevel) {
         def = static_cast<int>(5 * difficultyMultiplier);
         exp_reward = 50 + level * 10;
         gold_reward = 30 + level * 5;
+        score_reward = 8.0f + level * 4.0f;
     }
     
     hp = maxHp;
@@ -66,6 +70,7 @@ int Monster::getATK() const { return atk; }
 int Monster::getDEF() const { return def; }
 int Monster::getExpReward() const { return exp_reward; }
 int Monster::getGoldReward() const { return gold_reward; }
+float Monster::getScoreReward() const { return score_reward; }
 int Monster::getLevel() const { return level; }
 bool Monster::get_isAlive() const { return isAlive; }
 
