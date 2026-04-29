@@ -16,7 +16,9 @@
 #include <fstream>
 #include <cstdlib>
 #include <ctime>
-#include <nlohmann/json.hpp>  // JSON library – make sure it's included in your project
+#include <random>
+#include <chrono>
+#include "third_party/json/single_include/nlohmann/json.hpp"  // JSON library – make sure it's included in your project
 
 using json = nlohmann::json;
 
@@ -31,7 +33,7 @@ const int TRAP_DAMAGE_MAX[3] = {15, 30, 50};
 
 // ========== Constructor & Destructor ==========
 Game::Game()
-    : difficulty(1), totalRooms(MAX_ROOMS_NORMAL), currentRoomIndex(0),
+    : seed(std::time(nullptr)),difficulty(1), totalRooms(MAX_ROOMS_NORMAL), currentRoomIndex(0),
       isRunning(false), playerWin(false), player(nullptr), mapGen(nullptr) {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 }
@@ -116,7 +118,12 @@ void Game::initGame() {
     player = new Player(playerName);
 
     // Create map generator
-    mapGen = new MapGenerator();
+    std::mt19937 rng;
+    unsigned int seed = static_cast<unsigned int>(
+        std::chrono::steady_clock::now().time_since_epoch().count()
+    );
+    rng.seed(seed);
+    mapGen = new MapGenerator(seed);
 
     // Apply difficulty scaling (sets global modifiers for monsters/traps)
     applyDifficultyScaling();
@@ -236,7 +243,7 @@ void Game::enterNextRoom() {
         }
         case RoomType::SHOP: {
             Shop* shop = new Shop();
-            shop->initShop(new Merchant(difficulty), player);
+            shop->initShop(new Merchant(difficulty, seed), player);
             break;
         }
         case RoomType::TREASURE: {

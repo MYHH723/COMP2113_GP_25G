@@ -25,7 +25,7 @@ private:
     bool isBattleActive;
     BattleResult lastResult;
     std::vector<std::string> battleLog;
-    float reward[2];
+    float reward[3]; // [0] = exp, [1] = gold, [2] = score
 
 public:
     BattleSystem();

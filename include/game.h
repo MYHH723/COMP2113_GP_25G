@@ -17,6 +17,7 @@ class Shop;
 class Game {
 private:
     // Game state variables
+    int seed;                // Random seed for map generation
     int difficulty;          // 0 = Easy, 1 = Normal, 2 = Hard
     int totalRooms;          // Number of rooms to clear (depends on difficulty)
     int currentRoomIndex;    // Index of the room the player is in (0-based)
