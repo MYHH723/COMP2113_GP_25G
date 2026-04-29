@@ -2,6 +2,8 @@
 #include "savegame.h"
 #include "item.h"
 #include "types.h"
+#include "item.h"
+#include "types.h"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -88,15 +90,18 @@ int Inventory::get_current_size() const
 
 
 
+
 // Player implementation
 Player::Player(std::string name) : playerName(name)
 {
+    state["LEVEL"] = 1;
     state["LEVEL"] = 1;
     state["ATK"] = DEFAULT_ATK;
     state["DEF"] = DEFAULT_DEF;
     state["HP"] = DEFAULT_HP;
     state["EXP"] = DEFAULT_EXP;
     state["Money"] = DEFAULT_MONEY;
+    maxHP = DEFAULT_HP;
     inventory = new Inventory();
     maxHP = DEFAULT_HP;
     equippedItems["WEAPON"] = 0;
@@ -114,6 +119,11 @@ Player::~Player()
 std::map<std::string, float> Player::get_state() const
 {
     return state;
+}
+
+int Player::get_Level() const
+{
+    return static_cast<int>(state.at("LEVEL"));
 }
 
 int Player::get_Level() const
@@ -144,6 +154,11 @@ float Player::get_EXP() const
 float Player::get_Money() const
 {
     return state.at("Money");
+}
+
+float Player::get_maxHP() const
+{
+    return maxHP;
 }
 
 float Player::get_maxHP() const
@@ -187,6 +202,10 @@ void Player::change_HP(float amount)
     {
         state["HP"] = maxHP;
     }
+    if (state["HP"] > maxHP)
+    {
+        state["HP"] = maxHP;
+    }
     if (state["HP"] <= 0)
     {
         isAlive = false;
@@ -196,6 +215,15 @@ void Player::change_HP(float amount)
 void Player::change_EXP(float amount)
 {
     state["EXP"] += amount;
+    int level = state.at("LEVEL");
+    float exp = state.at("EXP");
+    while(exp >= 100 * std::pow(1.1, level - 1)) {
+        exp -= 100 * std::pow(1.1, level - 1); 
+        level++;
+        level_up();
+    }
+    state["LEVEL"] = level;
+    state["EXP"] = exp;
     int level = state.at("LEVEL");
     float exp = state.at("EXP");
     while(exp >= 100 * std::pow(1.1, level - 1)) {
