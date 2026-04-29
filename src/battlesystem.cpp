@@ -88,6 +88,7 @@ BattleResult BattleSystem::executeBattleRound() {
     std::uniform_int_distribution<> int_dist(1, player->get_HP());     
     float dice = int_dist(gen)/DEFAULT_HP;  // Random float between 0 and 1 based on player's HP
     if(dice < 0.1f) {
+        monsterAttack();
         playerFlee();
     } else if(dice < 0.2f) {
         playerAttack();
@@ -137,8 +138,10 @@ int BattleSystem::playerAttack() {
         lastResult = BattleResult::PLAYER_WIN;
         float reward_exp = static_cast<float>(currentMonster->getExpReward());
         float reward_gold = static_cast<float>(currentMonster->getGoldReward());
+        float reward_score = static_cast<float>(currentMonster->getScoreReward());
         reward[0] += reward_exp;
         reward[1] += reward_gold;
+        reward[2] += reward_score;
         battleLog.push_back("Gained " + std::to_string(reward_exp) + " EXP and " + 
                 std::to_string(reward_gold) + " Gold");
     }
@@ -226,4 +229,5 @@ std::string BattleSystem::showBattleLog() {
 void BattleSystem::applyRewards() {
     player->change_EXP(reward[0]);
     player->change_Money(reward[1]);
+    player->change_score(reward[2]);
 }

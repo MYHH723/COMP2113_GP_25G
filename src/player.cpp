@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include <nlohmann/json.hpp>
+#include "third_party/json/single_include/nlohmann/json.hpp"
 using json = nlohmann::json;
 
 // Inventory implementation
@@ -13,20 +13,20 @@ Inventory::Inventory() : capacity(MAX_INVENTORY_SIZE) {}
 
 Inventory::~Inventory() {}
 
-bool Inventory::add_item(const std::string &itemName)
+bool Inventory::add_item(const int id)
 {
     if (items.size() < capacity)
     {
-        items.push_back(itemName);
+        items.push_back(id);
         sort_items();
         return true;
     }
     return false;
 }
 
-bool Inventory::remove_item(const std::string &itemName)
+bool Inventory::remove_item(const int id)
 {
-    auto it = std::find(items.begin(), items.end(), itemName);
+    auto it = std::find(items.begin(), items.end(), id);
     if (it != items.end())
     {
         items.erase(it);
@@ -35,43 +35,33 @@ bool Inventory::remove_item(const std::string &itemName)
     return false;
 }
 
-std::string Inventory::get_item(const std::string &itemName) {
-    auto it = std::find(items.begin(), items.end(), itemName);
-    if (it != items.end()) {
-        return *it;
+int Inventory::get_item(const int id) {
+    if(itemDatabase.find(id) != itemDatabase.end()) {
+        return id;
+
     }
-    return "";
+    return 0;
 }
 
-bool Inventory::use_item(const std::string &itemName)
+bool Inventory::use_item(const int id)
 {
     // Simple implementation: remove on use
-    return remove_item(itemName);
+    return remove_item(id);
 }
 
 void Inventory::sort_items()
 {
-    // Define type priorities: WEAPON > ARMOR > POTION
-    std::map<std::string, int> typePriority = {
-        {"WEAPON", 3},
-        {"ARMOR", 2},
-        {"POTION", 1}};
+    // Define type priorities using enum values
+    std::map<ItemType, int> typePriority = {
+        {ItemType::WEAPON, 3},
+        {ItemType::ARMOR, 2},
+        {ItemType::POTION, 1}};
 
-    items.sort([&typePriority](const std::string &a, const std::string &b)
+    items.sort([&typePriority, this](const int &idA, const int &idB)
                {
-        // Parse from "Type:Grade:Name:..."
-        auto parse = [](const std::string& s) -> std::pair<std::string, int> {
-            size_t pos1 = s.find(':');
-            if (pos1 == std::string::npos) return {"", 0};
-            std::string type = s.substr(0, pos1);
-            size_t pos2 = s.find(':', pos1 + 1);
-            if (pos2 == std::string::npos) return {type, 0};
-            int grade = std::stoi(s.substr(pos1 + 1, pos2 - pos1 - 1));
-            return {type, grade};
-        };
-
-        auto [typeA, gradeA] = parse(a);
-        auto [typeB, gradeB] = parse(b);
+        // Get type from itemDatabase using id (type is ItemType enum)
+        ItemType typeA = itemDatabase[idA].type;
+        ItemType typeB = itemDatabase[idB].type;
 
         // First compare by type priority (higher first)
         int priA = typePriority.count(typeA) ? typePriority[typeA] : 0;
@@ -79,8 +69,11 @@ void Inventory::sort_items()
         if (priA != priB) {
             return priA > priB;
         }
-        // Then by grade (higher first)
-        return gradeA > gradeB; });
+        
+        // Then by grade (if exists) or other attributes
+        // return itemDatabase[idA].grade > itemDatabase[idB].grade;
+        
+        return false; });
 }
 
 int Inventory::get_capacity() const
@@ -106,11 +99,11 @@ Player::Player(std::string name) : playerName(name)
     state["Money"] = DEFAULT_MONEY;
     inventory = new Inventory();
     maxHP = DEFAULT_HP;
-    equippedItems["WEAPON"] = "";
-    equippedItems["ARMOR"] = "";
+    equippedItems["WEAPON"] = 0;
+    equippedItems["ARMOR"] = 0;
+    score = 0.0f;
     isAlive = true;
-    isPoisoned = false;
-    isStunned = false;
+
 }
 
 Player::~Player()
@@ -163,17 +156,12 @@ bool Player::get_isAlive() const
     return isAlive;
 }
 
-bool Player::get_isPoisoned() const
+float Player::get_score() const
 {
-    return isPoisoned;
+    return score + get_Level() * 20 + get_ATK() * 5 + get_DEF() * 5 + get_EXP() * 0.1f + get_Money() * 0.01f;
 }
 
-bool Player::get_isStunned() const
-{
-    return isStunned;
-}
-
-std::list<std::string> Player::get_all_items() const{
+std::list<int> Player::get_all_items() const{
     return inventory->get_items();
 }
 
@@ -229,29 +217,19 @@ void Player::set_isAlive(bool alive)
     isAlive = alive;
 }
 
-void Player::set_isPoisoned(bool poisoned)
+void Player::add_item(const int id)
 {
-    isPoisoned = poisoned;
+    inventory->add_item(id);
 }
 
-void Player::set_isStunned(bool stunned)
+void Player::remove_item(const int id)
 {
-    isStunned = stunned;
+    inventory->remove_item(id);
 }
 
-void Player::add_item(const std::string &itemName)
+void Player::use_item(const int id)
 {
-    inventory->add_item(itemName);
-}
-
-void Player::remove_item(const std::string &itemName)
-{
-    inventory->remove_item(itemName);
-}
-
-void Player::use_item(const std::string &itemName)
-{
-    inventory->use_item(itemName);
+    inventory->use_item(id);
 }
 
 void Player::sort_items()
@@ -290,37 +268,40 @@ void Player::level_up()
     
 }
 
-void Player::equip_weapon(const std::string &itemName)
+void Player::equip(const int id)
 {
-    std::string itemStr = inventory->get_item(itemName);
-    if(inventory->remove_item(itemName)) {
-        if (!equippedItems["WEAPON"].empty()) {
-            float oldEffect = parseEffectValue(equippedItems["WEAPON"]);
-            state["ATK"] -= oldEffect;
-            inventory->add_item(equippedItems["WEAPON"]);
+    if (itemDatabase.find(id) == itemDatabase.end()) return;
+    if (itemDatabase[id].type == WEAPON)
+    {
+        if(inventory->remove_item(id)){
+            if (equippedItems["WEAPON"] != 0) {
+                float oldEffect = itemDatabase[(equippedItems["WEAPON"])].effectValue;
+                state["ATK"] -= oldEffect;
+                inventory->add_item(equippedItems["WEAPON"]);
+            }
+            equippedItems["WEAPON"] = id;
+            float newEffect = itemDatabase[id].effectValue;
+            state["ATK"] += newEffect;
         }
-        equippedItems["WEAPON"] = itemStr;
-        float newEffect = parseEffectValue(itemStr);
-        state["ATK"] += newEffect;
     }
+    else if (itemDatabase[id].type == ARMOR)
+    {
+        if(inventory->remove_item(id)){
+            if (equippedItems["ARMOR"] != 0) {
+                float oldEffect = itemDatabase[(equippedItems["ARMOR"])].effectValue;
+                state["DEF"] -= oldEffect;
+                inventory->add_item(equippedItems["ARMOR"]);
+            }
+            equippedItems["ARMOR"] = id;
+            float newEffect = itemDatabase[id].effectValue;
+            state["DEF"] += newEffect;
+        }
+    }
+
+    
 
 }
 
-void Player::equip_armor(const std::string &itemName)
-{
-    std::string itemStr = inventory->get_item(itemName);
-    if(inventory->remove_item(itemName)) {
-        if (!equippedItems["ARMOR"].empty()) {
-            float oldEffect = parseEffectValue(equippedItems["ARMOR"]);
-            state["DEF"] -= oldEffect;
-            inventory->add_item(equippedItems["ARMOR"]);
-        }
-        equippedItems["ARMOR"] = itemStr;
-        float newEffect = parseEffectValue(itemStr);
-        state["DEF"] += newEffect;
-    }
-
-}
 
 
 std::string Player::itemToString(const Item &item)
@@ -342,17 +323,6 @@ std::string Player::itemToString(const Item &item)
            std::to_string(item.getEffectValue()) + ":" + std::to_string(item.getPrice());
 }
 
-float Player::parseEffectValue(const std::string& itemStr) const {
-
-    size_t pos1 = itemStr.find(':');
-    size_t pos2 = itemStr.find(':', pos1 + 1);
-    size_t pos3 = itemStr.find(':', pos2 + 1);
-    size_t pos4 = itemStr.find(':', pos3 + 1);
-    
-    std::string effectStr = itemStr.substr(pos3 + 1, pos4 - pos3 - 1);
-    return std::stof(effectStr);
-}
-
 json Player::toJson() const {
     json j;
     
@@ -367,17 +337,16 @@ json Player::toJson() const {
     
     // === Status flags ===
     j["status"]["isAlive"] = isAlive;
-    j["status"]["isPoisoned"] = isPoisoned;
-    j["status"]["isStunned"] = isStunned;
+    j["status"]["score"] = score;
     
-    // === Inventory (preserve your exact string format) ===
+    // === Inventory (preserve your exact id) ===
     j["inventory"] = json::array();
-    for (const auto& itemStr : inventory->get_items()) {
+    for (const int& itemStr : inventory->get_items()) {
         j["inventory"].push_back(itemStr);  // "SWORD:2:Iron Blade:25:150:150:false"
     }
 
-    j["equipped"]["WEAPON"] = equippedItems.at("WEAPON");
-    j["equipped"]["ARMOR"] = equippedItems.at("ARMOR");
+    j["equipped"]["WEAPON"] = equippedItems.count("WEAPON") ? equippedItems.at("WEAPON") : 0;
+    j["equipped"]["ARMOR"] = equippedItems.count("ARMOR") ? equippedItems.at("ARMOR") : 0;
     
     return j;
 }
@@ -402,15 +371,16 @@ void Player::fromJson(const json& j) {
     if (j.contains("status")) {
         const auto& status = j["status"];
         if (status.contains("isAlive")) isAlive = status["isAlive"].get<bool>();
-        if (status.contains("isPoisoned")) isPoisoned = status["isPoisoned"].get<bool>();
-        if (status.contains("isStunned")) isStunned = status["isStunned"].get<bool>();
+        if (status.contains("score")) score = status["score"].get<float>();
     }
     
     // === Load inventory (clear first, then restore) ===
     if (j.contains("inventory") && j["inventory"].is_array()) {
         inventory->clear_items();  
-        for (const auto& itemStr : j["inventory"]) {
-            inventory->add_item(itemStr.get<std::string>());  
+        for (const auto& itemId : j["inventory"]) {
+            int id = itemId.get<int>();
+            Item temp(id);
+            inventory->add_item(id);
         }
     }
     
@@ -418,10 +388,12 @@ void Player::fromJson(const json& j) {
     if (j.contains("equipped")) {
         const auto& equipped = j["equipped"];
         if (equipped.contains("WEAPON")) {
-            equippedItems["WEAPON"] = equipped["WEAPON"].get<std::string>();
+            equippedItems["WEAPON"] = equipped["WEAPON"];
+            Item temp(equippedItems["WEAPON"]);
         }
         if (equipped.contains("ARMOR")) {
-            equippedItems["ARMOR"] = equipped["ARMOR"].get<std::string>();
+            equippedItems["ARMOR"] = equipped["ARMOR"];
+            Item temp(equippedItems["ARMOR"]);
         }
     }
 }

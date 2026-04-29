@@ -19,6 +19,7 @@ private:
 
 public:
     MapGenerator();
+    MapGenerator(int seed);
     ~MapGenerator();
 
     // Initialization

@@ -1,54 +1,49 @@
+// item.h
 #ifndef ITEM_H
 #define ITEM_H
 
 #include <string>
+#include <unordered_map>
+#include "types.h"
 
 // Forward declaration
 class Player;
 
-// Item class - represents a single item
-class Item {
-private:
+struct ItemData {
     std::string name;
     ItemType type;
-    ItemRarity rarity; 
-    float effectValue; // For potions: heal amount; for weapons: attack boost; for armor: defense boost
+    ItemRarity rarity;
+    float effectValue;
     int price;
     bool isConsumed;
+};
+
+extern std::unordered_map<int, ItemData> itemDatabase;
+
+void initItemDatabase();
+
+// Item :only id
+class Item {
+private:
+    int id;
 
 public:
     Item();
-    Item(const std::string name, ItemType type, ItemRarity rarity,
-           int cost, float effect, bool consumed = false);
-    ~Item();
-
-    // Initialization
-    void initItem(ItemType type, int grade);
-
-    // Getters
+    explicit Item(int id);           
+    
+    int getId() const;
+    std::string getName() const;
     ItemType getType() const;
     ItemRarity getRarity() const;
-    std::string getName() const;
     float getEffectValue() const;
     int getPrice() const;
     bool getIsConsumed() const;
     void setIsConsumed(bool state);
-
-
-    // Item effects
+    
     void applyEffect(Player& player);
     void displayItemInfo() const;
+    
     bool operator==(const Item& other) const;
 };
 
-// Global constants for items
-const int ITEM_EFFECT_POTION[3] = { 5, 10, 15 };
-const int ITEM_PRICE_POTION[3] = { 5, 10, 15 };
-
-const int ITEM_EFFECT_SWORD[3] = { 10, 20, 30 };
-const int ITEM_PRICE_SWORD[3] = { 15, 25, 40 };
-
-const int ITEM_EFFECT_ARMOR[3] = { 5, 10, 15 };
-const int ITEM_PRICE_ARMOR[3] = { 20, 35, 50 };
-
-#endif // ITEM_H
+#endif
