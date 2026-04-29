@@ -75,8 +75,13 @@ bool Shop::buyItem(ItemType type, int grade) {
     }
 
     player->change_Money(-finalPrice);
+<<<<<<< HEAD
     int id = item.getId();
     inventory->add_item(id);
+=======
+    std::string itemName = item.getName();
+    inventory->add_item(itemName);
+>>>>>>> 31434eff26c9f3e059ac5828c7c4afb7c6b30f69
 
     GameLogger logger;
     logger.initLogFile();
@@ -124,7 +129,11 @@ bool Shop::sellItem(ItemType type, int grade) {
 
     int sellPrice = static_cast<int>(item.getPrice() * sellMulti);
 
+<<<<<<< HEAD
     inventory->remove_item(itemId);
+=======
+    inventory->remove_item(itemName);
+>>>>>>> 31434eff26c9f3e059ac5828c7c4afb7c6b30f69
     player->change_Money(sellPrice);
 
     GameLogger logger;

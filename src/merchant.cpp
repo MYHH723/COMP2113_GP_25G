@@ -26,6 +26,9 @@ static int generateUniqueId() {
     return newId;
 }
 
+std::mt19937 gen(std::random_device{}());
+std::uniform_int_distribution<> int_dist(0, 30);
+
 // Constructor: Initialize merchant with game difficulty and set default availability
 Merchant::Merchant(int gameDiff,int)
     : currentDiff(gameDiff), isAvailable(true) {
