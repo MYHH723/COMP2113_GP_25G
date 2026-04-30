@@ -9,7 +9,7 @@ std::mt19937 gen(std::random_device{}());
 
 Monster::Monster() 
     : name(""), hp(0), maxHp(0), atk(0), def(0), 
-      exp_reward(0), gold_reward(0), level(1), isAlive(true) {
+      exp_reward(0), gold_reward(0), score_reward(0.0f), level(1), isAlive(true) {
 }
 
 Monster::~Monster() {
