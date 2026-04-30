@@ -6,11 +6,15 @@
 #include <sstream>
 #include <iomanip>
 
+#ifndef DEFAULT_HP
+#define DEFAULT_HP 100.0f
+#endif
+
 std::mt19937 gen(std::random_device{}());
 
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
-      isBattleActive(false), lastResult(BattleResult::ONGOING), reward{0, 0} {
+      isBattleActive(false), lastResult(BattleResult::ONGOING), reward{0.0f, 0.0f, 0.0f} {
     battleLog.clear();
     battleLog.push_back("Battle system initialized");
 }
@@ -26,6 +30,10 @@ void BattleSystem::initBattle(Player* p, Monster* m) {
     round_count = 0;
     isBattleActive = true;
     lastResult = BattleResult::ONGOING;
+    reward[0] = 0.0f;
+    reward[1] = 0.0f;
+    reward[2] = 0.0f;
+    
     battleLog.clear();
     std::string log = "Battle started!";
     if (currentMonster) log += " Encounter: " + currentMonster->getName();
@@ -85,14 +93,16 @@ BattleResult BattleSystem::executeBattleRound() {
     
     round_count++;
     battleLog.push_back("--- Round " + std::to_string(round_count) + " ---");
-    std::uniform_int_distribution<> int_dist(1, player->get_HP());     
-    float dice = int_dist(gen)/DEFAULT_HP;  // Random float between 0 and 1 based on player's HP
+    
+    std::uniform_int_distribution<> int_dist(1, static_cast<int>(player->get_HP()));     
+    float dice = static_cast<float>(int_dist(gen)) / DEFAULT_HP;
+    
     if(dice < 0.1f) {
         monsterAttack();
         playerFlee();
     } else if(dice < 0.2f) {
         playerAttack();
-        if (currentMonster->get_isAlive()) {
+        if (currentMonster && currentMonster->get_isAlive()) {
             monsterAttack();
         }  
     } else if(dice < 0.4f){
@@ -100,7 +110,7 @@ BattleResult BattleSystem::executeBattleRound() {
         monsterAttack();  
     } else{
         playerAttack();
-        if (currentMonster->get_isAlive()) {
+        if (currentMonster && currentMonster->get_isAlive()) {
             monsterAttack();
         }
     }
@@ -136,12 +146,13 @@ int BattleSystem::playerAttack() {
         battleLog.push_back("Defeated " + currentMonster->getName() + "!");
         isBattleActive = false;
         lastResult = BattleResult::PLAYER_WIN;
+        
         float reward_exp = static_cast<float>(currentMonster->getExpReward());
         float reward_gold = static_cast<float>(currentMonster->getGoldReward());
-        float reward_score = static_cast<float>(currentMonster->getScoreReward());
+        
         reward[0] += reward_exp;
         reward[1] += reward_gold;
-        reward[2] += reward_score;
+        
         battleLog.push_back("Gained " + std::to_string(reward_exp) + " EXP and " + 
                 std::to_string(reward_gold) + " Gold");
     }
@@ -161,7 +172,9 @@ int BattleSystem::monsterAttack() {
     }
     
     int damage = currentMonster->attackPlayer(*player);
-    battleLog.push_back("Player remaining HP: " + std::to_string(player->get_HP()) + "/" + std::to_string(player->get_maxHP()));
+    
+    battleLog.push_back("Player remaining HP: " + std::to_string(static_cast<int>(player->get_HP())));
+    
     if (damage > 0) {
         battleLog.push_back(currentMonster->getName() + " attacks player, dealing " + 
                            std::to_string(damage) + " damage");
@@ -211,6 +224,10 @@ int BattleSystem::getRoundCount() const { return round_count; }
 bool BattleSystem::get_isBattleActive() const { return isBattleActive; }
 std::vector<std::string> BattleSystem::getBattleLog() const { return battleLog; }
 
+const float* BattleSystem::getRewards() const {
+    return reward;
+}
+
 std::string BattleSystem::showBattleLog() {
     std::stringstream ss;
     ss << "=== Battle Log ===" << std::endl;
@@ -227,7 +244,9 @@ std::string BattleSystem::showBattleLog() {
 }
 
 void BattleSystem::applyRewards() {
-    player->change_EXP(reward[0]);
-    player->change_Money(reward[1]);
-    player->change_score(reward[2]);
+    if (player) {
+        player->change_EXP(reward[0]);
+        player->change_Money(reward[1]);
+        player->change_score(reward[2]);
+    }
 }
