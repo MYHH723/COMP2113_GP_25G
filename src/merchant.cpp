@@ -2,111 +2,67 @@
 #include "item.h"
 #include "types.h"
 #include <iostream>
-#include <random>
-#include <ctime>
-#include <chrono>
-#include <string>
-#include <unordered_set>
 
-std::mt19937 gen(std::random_device{}());
-std::mt19937 rng;
-
-static int generateUniqueId() {
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    static std::uniform_int_distribution<int> dist(1, 2'000'000'000);
-    static std::unordered_set<int> usedIds;
-    
-    int newId;
-    do {
-        newId = dist(gen);
-    } while (usedIds.find(newId) != usedIds.end());
-    
-    usedIds.insert(newId);
-    return newId;
-}
-
-std::mt19937 gen(std::random_device{}());
-std::uniform_int_distribution<> int_dist(0, 30);
-
-// Constructor: Initialize merchant with game difficulty and set default availability
-Merchant::Merchant(int gameDiff,int)
-    : currentDiff(gameDiff), isAvailable(true) {
-    unsigned int seed = static_cast<unsigned int>(
-        std::chrono::steady_clock::now().time_since_epoch().count()
-    );
-    rng.seed(seed);
+Merchant::Merchant(int gameDiff, int seed) : currentDiff(gameDiff), isAvailable(true) {
     initMerchant();
 }
 
-// Destructor
 Merchant::~Merchant() = default;
 
-// Initialize all merchant goods with 3 rarity levels per item type
 void Merchant::initMerchant() {
-    // Initialize Consumable Items (Potion)
     restockGoods(POTION);
     restockGoods(WEAPON);
     restockGoods(ARMOR);
 }
 
-// Check if the merchant has the specified item type and index
 bool Merchant::hasItem(ItemType type) const {
-    if(goods.at(type) == 0) {
-        return false;
-    }
-    return true;
+    return goods.find(type) != goods.end();
 }
 
-// Get the item from goods by type and index
-Item Merchant::getItem(ItemType type){
-    if (!hasItem(type)) {
-        restockGoods(type); 
-    }
-    Item item = Item(goods.at(type));
-    goods.at(type) = 0; // Remove item from stock
-    return item;
-
+Item Merchant::getItem(ItemType type) {
+    int id = goods[type];
+    return Item(id);
 }
 
-// Show all goods list with detailed information
 void Merchant::showGoodsList() const {
     std::cout << "\n===== Merchant Shop =====" << std::endl;
-
-    // Display all consumable items
-    std::cout << "\n[Consumable Items]: ";
-    Item(goods.at(POTION)).displayItemInfo();
-
-    // Display all weapon items
-    std::cout << "[Weapon Items]: ";
-    Item(goods.at(WEAPON)).displayItemInfo();
-
-    // Display all armor items
-    std::cout << "[Armor Items]: ";
-    Item(goods.at(ARMOR)).displayItemInfo();
-
+    for (const auto& pair : goods) {
+        Item temp(pair.second);
+        std::cout << "- " << temp.getName()
+                  << " (Price: " << temp.getPrice() << " gold)" << std::endl;
+    }
+    std::cout << "=========================" << std::endl;
 }
 
 void Merchant::restockGoods(ItemType type) {
-    int id;
-    do{
-        id = generateUniqueId();
-        Item(id);
-    }while(itemDatabase[id].type != type);
-    goods.at(type) = id;
+    static int nextId = 10000;
+    int id = nextId++;
+    std::string name;
+    int cost = 0;
+    float effectValue = 0;
+    ItemRarity rarity = LOW;
+
+    if (type == POTION) {
+        name = "Potion";
+        effectValue = 30;
+        cost = 20;
+        rarity = MEDIUM;
+    } else if (type == WEAPON) {
+        name = "Iron Sword";
+        effectValue = 8;
+        cost = 25;
+        rarity = MEDIUM;
+    } else if (type == ARMOR) {
+        name = "Iron Armor";
+        effectValue = 5;
+        cost = 22;
+        rarity = MEDIUM;
+    }
+
+    itemDatabase[id] = {name, type, rarity, effectValue, cost, false};
+    goods[type] = id;
 }
 
-// Get merchant availability status
-bool Merchant::getIsAvailable() const {
-    return isAvailable;
-}
-
-// Set merchant availability status
-void Merchant::setIsAvailable(bool state) {
-    isAvailable = state;
-}
-
-// Get current game difficulty
-int Merchant::getCurrentDiff() const {
-    return currentDiff;
-}
+bool Merchant::getIsAvailable() const { return isAvailable; }
+void Merchant::setIsAvailable(bool state) { isAvailable = state; }
+int Merchant::getCurrentDiff() const { return currentDiff; }
