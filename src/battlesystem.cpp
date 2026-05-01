@@ -11,7 +11,6 @@
 #endif
 
 static std::mt19937 gen(std::random_device{}());
-const float* getRewards() const;
 
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
@@ -224,10 +223,7 @@ BattleResult BattleSystem::getLastResult() const { return lastResult; }
 int BattleSystem::getRoundCount() const { return round_count; }
 bool BattleSystem::get_isBattleActive() const { return isBattleActive; }
 std::vector<std::string> BattleSystem::getBattleLog() const { return battleLog; }
-
-const float* BattleSystem::getRewards() const {
-    return reward;
-}
+const float* BattleSystem::getRewards() const { return reward; }
 
 std::string BattleSystem::showBattleLog() {
     std::stringstream ss;

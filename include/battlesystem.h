@@ -49,6 +49,7 @@ public:
     BattleResult getLastResult() const;
     int getRoundCount() const;
     bool get_isBattleActive() const;
+    const float* getRewards() const;
     std::vector<std::string> getBattleLog() const;
 
     // Settlement
