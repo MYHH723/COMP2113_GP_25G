@@ -10,7 +10,7 @@
 #define DEFAULT_HP 100.0f
 #endif
 
-std::mt19937 gen(std::random_device{}());
+static std::mt19937 gen(std::random_device{}());
 
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
