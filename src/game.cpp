@@ -204,9 +204,14 @@ void Game::enterNextRoom() {
         case RoomType::NORMAL:
         case RoomType::BOSS: {
             std::vector<Monster*> monsters = currentRoom->getMonsters();
-            BattleSystem battle;          // 改为局部对象，不是指针
+            BattleSystem battle;
             bool playerLost = false;
             bool playerFled = false;
+
+            // 用于累积整个房间的总奖励
+            float totalExp = 0.0f;
+            float totalGold = 0.0f;
+            float totalScore = 0.0f;
 
             for (auto monster : monsters) {
                 if (playerLost || playerFled) break;
@@ -225,47 +230,60 @@ void Game::enterNextRoom() {
                     break;
                 } else if (result == BattleResult::PLAYER_FLEE) {
                     playerFled = true;
+                    // 逃跑时，已经获得的奖励（之前击败怪物的）也应该保留，但这里先显示日志并应用已累积部分
                     std::cout << battle.showBattleLog() << std::endl;
-                    battle.applyRewards();   // 逃跑也应用已获得的奖励
-                    break;
-                } else if (result == BattleResult::PLAYER_WIN) {
-                    // 每击败一个怪物就立即应用奖励（防止多个怪物时奖励累计丢失）
+                    // 注意：逃跑时可能已经击败了一部分怪物，需要把已经累积的奖励给玩家
+                    player->change_EXP(totalExp);
+                    player->change_Money(totalGold);
+                    player->change_score(totalScore);
+                    // 再应用本场战斗（逃跑这场）的奖励（如果有，但逃跑时怪物未死，通常没有奖励）
                     battle.applyRewards();
+                    return;
+                } else if (result == BattleResult::PLAYER_WIN) {
+                    // 累积本只怪物的奖励，但不立即应用
+                    const float* rewards = battle.getRewards();
+                    totalExp += rewards[0];
+                    totalGold += rewards[1];
+                    totalScore += rewards[2];
                 }
             }
 
             // 处理最终结果
             if (playerLost) {
+                // 死亡：不给予任何奖励（已经扣除血量等，游戏结束）
                 isRunning = false;
                 playerWin = false;
                 return;
             }
             if (playerFled) {
-                // 已经处理过逃跑日志和奖励，直接返回
+                // 已在上面处理，直接返回
                 return;
             }
-            // 全部怪物胜利
+
+            // 全部怪物胜利：一次性发放所有累积的奖励
+            player->change_EXP(totalExp);
+            player->change_Money(totalGold);
+            player->change_score(totalScore);
+
             playerWin = true;
-            // 不再重复应用奖励（已在循环内应用），只显示最终战报（可选）
-            // 显示最后一次战斗的日志作为参考
+            // 显示最后一次战斗的日志（或者显示胜利信息）
+            std::cout << "Room cleared! Gained " << totalExp << " EXP, " 
+                      << totalGold << " Gold, " << totalScore << " Score.\n";
             std::cout << battle.showBattleLog() << std::endl;
             break;
         }
 
         case RoomType::SHOP: {
-            // 修复内存泄漏：使用局部对象，或者手动 delete
             Merchant* merchant = new Merchant(difficulty, seed);
             Shop shop;
             shop.initShop(merchant, player);
-            shop.showShopUI();   // 假设需要显示商店界面，否则可以调用其他交互函数
-            // 注意：Shop 不会自动删除 merchant，需要在 shop 内部管理或手动释放
+            shop.showShopUI();
             delete merchant;
             break;
         }
 
         case RoomType::TREASURE: {
-            // 简单实现：给一点随机金币（可根据需要扩展）
-            int gold = 50 + rand() % 151;  // 50~200 金币
+            int gold = 50 + rand() % 151;
             player->change_Money(gold);
             std::cout << "You found a treasure chest! Gained " << gold << " gold.\n";
             break;
@@ -275,10 +293,8 @@ void Game::enterNextRoom() {
             break;
     }
 
-    // Auto-save after each room
     saveGame();
 }
-
 // ========== Game End Logic ==========
 void Game::checkGameOver() {
     if (player->get_HP() <= 0) {
