@@ -11,7 +11,11 @@
 #include <thread>
 
 void clearScreen() {
-    std::cout << "\033[2J\033[1;1H";   // ANSI escape codes for Linux terminal
+#ifdef _WIN32
+    system("cls");
+#else
+    std::cout << "\033[2J\033[1;1H";
+#endif
 }
 
 void pause() {

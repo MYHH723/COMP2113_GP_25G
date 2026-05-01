@@ -7,7 +7,7 @@
 #include <random>
 
 std::unordered_map<int, ItemData> itemDatabase;
-std::mt19937 gen(std::random_device{}());
+static std::mt19937 gen(std::random_device{}());
 std::uniform_int_distribution<> int_dist(0, 30);
 
 void initItemDatabase() {}

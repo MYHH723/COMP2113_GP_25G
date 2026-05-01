@@ -198,64 +198,84 @@ void Game::enterNextRoom() {
     Room* currentRoom = rooms[currentRoomIndex];
     currentRoomIndex++;
 
-    // Determine room type and act accordingly
-    RoomType type = currentRoom->getRoomType();  // expects NORMAL, BOSS, SHOP, TREASURE
+    RoomType type = currentRoom->getRoomType();
 
     switch (type) {
         case RoomType::NORMAL:
         case RoomType::BOSS: {
             std::vector<Monster*> monsters = currentRoom->getMonsters();
-            BattleSystem* battle = new BattleSystem();
-            BattleResult result = BattleResult::ONGOING;
-            std::string battleLog;
-            for (auto monster : monsters)
-            {
-                battle->initBattle(player, monster);
-                battle->startBattle();
-                while(battle->get_isBattleActive())
-                {
-                    result = battle->executeBattleRound(); 
+            BattleSystem battle;          // 改为局部对象，不是指针
+            bool playerLost = false;
+            bool playerFled = false;
+
+            for (auto monster : monsters) {
+                if (playerLost || playerFled) break;
+
+                battle.initBattle(player, monster);
+                battle.startBattle();
+
+                while (battle.get_isBattleActive()) {
+                    battle.executeBattleRound();
                 }
-                battle->endBattle();
-                if(result == BattleResult::PLAYER_LOSE) {
-                    break;  // player died, exit loop
+                battle.endBattle();
+
+                BattleResult result = battle.getLastResult();
+                if (result == BattleResult::PLAYER_LOSE) {
+                    playerLost = true;
+                    break;
+                } else if (result == BattleResult::PLAYER_FLEE) {
+                    playerFled = true;
+                    std::cout << battle.showBattleLog() << std::endl;
+                    battle.applyRewards();   // 逃跑也应用已获得的奖励
+                    break;
+                } else if (result == BattleResult::PLAYER_WIN) {
+                    // 每击败一个怪物就立即应用奖励（防止多个怪物时奖励累计丢失）
+                    battle.applyRewards();
                 }
             }
-            result =  battle->getLastResult(); // returns WIN, LOSE, or FLEE
-            battleLog = battle->showBattleLog();
-            if (result == BattleResult::PLAYER_LOSE) {
+
+            // 处理最终结果
+            if (playerLost) {
                 isRunning = false;
                 playerWin = false;
                 return;
             }
-            else if (result == BattleResult::PLAYER_FLEE) {
-                playerWin = false;
-                std::cout << battleLog << std::endl;
-                battle->applyRewards(); 
+            if (playerFled) {
+                // 已经处理过逃跑日志和奖励，直接返回
                 return;
             }
-            else if (result == BattleResult::PLAYER_WIN) {
-                playerWin = true;
-                std::cout << battleLog << std::endl;
-                battle->applyRewards(); 
-            }
+            // 全部怪物胜利
+            playerWin = true;
+            // 不再重复应用奖励（已在循环内应用），只显示最终战报（可选）
+            // 显示最后一次战斗的日志作为参考
+            std::cout << battle.showBattleLog() << std::endl;
             break;
         }
+
         case RoomType::SHOP: {
-            Shop* shop = new Shop();
-            shop->initShop(new Merchant(difficulty, seed), player);
+            // 修复内存泄漏：使用局部对象，或者手动 delete
+            Merchant* merchant = new Merchant(difficulty, seed);
+            Shop shop;
+            shop.initShop(merchant, player);
+            shop.showShopUI();   // 假设需要显示商店界面，否则可以调用其他交互函数
+            // 注意：Shop 不会自动删除 merchant，需要在 shop 内部管理或手动释放
+            delete merchant;
             break;
         }
+
         case RoomType::TREASURE: {
-            // Treasure room: give random item or gold
-            // (Implementation depends on your item system)
+            // 简单实现：给一点随机金币（可根据需要扩展）
+            int gold = 50 + rand() % 151;  // 50~200 金币
+            player->change_Money(gold);
+            std::cout << "You found a treasure chest! Gained " << gold << " gold.\n";
             break;
         }
+
         default:
             break;
     }
 
-    // Auto-save after each room (optional but recommended)
+    // Auto-save after each room
     saveGame();
 }
 

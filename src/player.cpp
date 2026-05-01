@@ -2,11 +2,12 @@
 #include "savegame.h"
 #include "item.h"
 #include "types.h"
-#include "item.h"
-#include "types.h"
 #include <iostream>
 #include <fstream>
+#include <map>
+#include <cmath>
 #include <algorithm>
+
 #include "third_party/json/single_include/nlohmann/json.hpp"
 using json = nlohmann::json;
 
@@ -126,11 +127,6 @@ int Player::get_Level() const
     return static_cast<int>(state.at("LEVEL"));
 }
 
-int Player::get_Level() const
-{
-    return static_cast<int>(state.at("LEVEL"));
-}
-
 float Player::get_ATK() const
 {
     return state.at("ATK");
@@ -154,11 +150,6 @@ float Player::get_EXP() const
 float Player::get_Money() const
 {
     return state.at("Money");
-}
-
-float Player::get_maxHP() const
-{
-    return maxHP;
 }
 
 float Player::get_maxHP() const
@@ -224,20 +215,22 @@ void Player::change_EXP(float amount)
     }
     state["LEVEL"] = level;
     state["EXP"] = exp;
-    int level = state.at("LEVEL");
-    float exp = state.at("EXP");
-    while(exp >= 100 * std::pow(1.1, level - 1)) {
-        exp -= 100 * std::pow(1.1, level - 1); 
-        level++;
-        level_up();
-    }
-    state["LEVEL"] = level;
-    state["EXP"] = exp;
 }
 
 void Player::change_Money(float amount)
 {
     state["Money"] += amount;
+}
+
+void Player::change_score(float amount) {
+    score += amount;
+}
+
+void Player::set_isPoisoned(bool poisoned) {
+    // 如果不需要 poison 机制，可以空实现或添加成员变量
+    // 这里简单加一个成员变量（需要在类中添加 bool isPoisoned;）
+    // 为了不改变结构，暂时空实现
+    (void)poisoned;
 }
 
 void Player::set_isAlive(bool alive)
