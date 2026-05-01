@@ -19,6 +19,7 @@ private:
     Inventory* inventory;
     bool isShopOpen;
     float sellDiscount;
+    int purchaseCount;
 
 public:
     Shop();
