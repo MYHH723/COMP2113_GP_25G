@@ -13,6 +13,7 @@ Shop::Shop() {
     merchant = nullptr;
     player = nullptr;
     inventory = nullptr;
+    purchaseCount = 0;
 }
 
 Shop::~Shop() {
@@ -26,6 +27,7 @@ void Shop::initShop(Merchant* m, Player* p) {
     player = p;
     inventory = p->get_inventory();
     isShopOpen = true;
+    purchaseCount = 0;
 }
 
 int Shop::calculateSellPrice(const Item& item) {
@@ -37,6 +39,12 @@ bool Shop::buyItem(ItemType type, int grade) {
         std::cout << "[Shop] Shop is closed." << std::endl;
         return false;
     }
+
+    if (purchaseCount >= 5) {
+        std::cout << "[Shop] You can buy a maximum of 5 items per visit!" << std::endl;
+        return false;
+    }
+
     if (!merchant->hasItem(type)) {
         std::cout << "[Shop] Item not available." << std::endl;
         return false;
@@ -64,6 +72,8 @@ bool Shop::buyItem(ItemType type, int grade) {
     player->change_Money(-finalPrice);
     inventory->add_item(item.getId());
 
+    purchaseCount++;
+
     // Immediate effects for merchant-room purchases.
     if (type == WEAPON) {
         player->change_ATK(10.0f);
@@ -72,7 +82,7 @@ bool Shop::buyItem(ItemType type, int grade) {
         player->change_DEF(10.0f);
         std::cout << "[Shop] Armor bonus applied: +10 DEF." << std::endl;
     } else if (type == POTION) {
-        int heal = 10 + (std::rand() % 14); // 10-23
+        int heal = 10 + (std::rand() % 14);
         player->change_HP(static_cast<float>(heal));
         std::cout << "[Shop] Potion used immediately: +" << heal << " HP." << std::endl;
     }
@@ -83,6 +93,13 @@ bool Shop::buyItem(ItemType type, int grade) {
     logger.closeLogFile();
 
     std::cout << "[Shop] Bought: " << item.getName() << " for " << finalPrice << " gold." << std::endl;
+
+    std::cout << "\n[Shop] Current Inventory: " 
+              << inventory->get_current_size() 
+              << " / " 
+              << inventory->get_capacity() 
+              << std::endl;
+
     return true;
 }
 
@@ -150,6 +167,7 @@ void Shop::showShopUI() {
 
 void Shop::closeShop() {
     isShopOpen = false;
+    purchaseCount = 0;
 }
 
 bool Shop::get_isShopOpen() const {
