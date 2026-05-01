@@ -11,6 +11,7 @@
 #endif
 
 static std::mt19937 gen(std::random_device{}());
+const float* getRewards() const;
 
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
