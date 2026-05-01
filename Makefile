@@ -1,77 +1,33 @@
-# Makefile for COMP2113_GP Roguelike Game
-
-# Compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Wextra -O2
-DEBUGFLAGS = -std=c++11 -Wall -Wextra -g
-LDFLAGS = 
+CXXFLAGS = -std=c++17 -Wall -Wextra
+# -I. is required so the compiler can find "third_party/..." relative to the root
+# -I./third_party/json/single_include allows <nlohmann/json.hpp> style includes
+INCLUDES = -I. -I./include -I./third_party/json/single_include
 
-# Directories
 SRC_DIR = src
-INCLUDE_DIR = include
 BUILD_DIR = build
 BIN_DIR = bin
-DATA_DIR = data
 
-# File extensions
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
-OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-EXECUTABLE = $(BIN_DIR)/game
+OBJECTS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SOURCES))
+TARGET = $(BIN_DIR)/game
 
-# Targets
-.PHONY: all build clean run debug help
+.PHONY: all clean run build
 
-# Default target
-all: $(EXECUTABLE)
+all: $(TARGET)
 
-# Build the executable
-$(EXECUTABLE): $(OBJECTS) | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)
-	@echo "Build successful! Executable: $@"
-
-# Compile source files to object files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
-
-# Create directories if they don't exist
-$(BUILD_DIR):
-	@mkdir -p $(BUILD_DIR)
-
-$(BIN_DIR):
+$(TARGET): $(OBJECTS)
 	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(OBJECTS) -o $@
 
-$(DATA_DIR):
-	@mkdir -p $(DATA_DIR)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Debug build
-debug: CXXFLAGS = $(DEBUGFLAGS)
-debug: clean $(EXECUTABLE)
-	@echo "Debug build complete!"
-
-# Run the game
-run: $(EXECUTABLE) | $(DATA_DIR)
-	./$(EXECUTABLE)
-
-# Clean build artifacts
 clean:
-	@rm -rf $(BUILD_DIR) $(BIN_DIR)
-	@echo "Clean complete!"
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-# Clean all including data
-distclean: clean
-	@rm -rf $(DATA_DIR)/*.json $(DATA_DIR)/*.log
-	@echo "Distclean complete!"
+run: $(TARGET)
+	./$(TARGET)
 
-# Display help
-help:
-	@echo "COMP2113_GP Makefile - Available targets:"
-	@echo "  all        - Build the game (default)"
-	@echo "  build      - Same as 'all'"
-	@echo "  debug      - Build with debug symbols"
-	@echo "  run        - Run the compiled game"
-	@echo "  clean      - Remove build artifacts"
-	@echo "  distclean  - Remove build artifacts and game data"
-	@echo "  help       - Display this help message"
-
-# Build alias
-build: $(EXECUTABLE)
+build: $(TARGET)
