@@ -45,6 +45,7 @@ public:
     void change_EXP(float amount);
     void change_Money(float amount);
     void change_score(float amount);
+    void set_isPoisoned(bool poisoned);
     void set_isAlive(bool alive);
 
 
