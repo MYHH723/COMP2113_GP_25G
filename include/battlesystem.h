@@ -23,6 +23,7 @@ private:
     Monster* currentMonster;
     int round_count;
     bool isBattleActive;
+    bool playerDefending;
     BattleResult lastResult;
     std::vector<std::string> battleLog;
     float reward[3]; // [0] = exp, [1] = gold, [2] = score
@@ -41,7 +42,8 @@ public:
 
     // Combat actions
     int playerAttack();
-    int monsterAttack();
+    int monsterAttack(float extraDamageMultiplier = 1.0f);
+    bool playerCounter();
     bool playerFlee();
     bool playerDefend();
 
@@ -49,8 +51,8 @@ public:
     BattleResult getLastResult() const;
     int getRoundCount() const;
     bool get_isBattleActive() const;
-    const float* getRewards() const;
     std::vector<std::string> getBattleLog() const;
+    const float* getRewards() const;
 
     // Settlement
     std::string showBattleLog();
