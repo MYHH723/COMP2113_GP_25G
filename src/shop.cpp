@@ -41,8 +41,9 @@ bool Shop::buyItem(ItemType type, int grade) {
     }
 
     if (purchaseCount >= 5) {
-        std::cout << "[Shop] You can buy a maximum of 5 items per visit!" << std::endl;
-        return false;
+    std::cout << "[Shop] You have bought enough items, shop closes now." << std::endl;
+    closeShop();
+    return false;
     }
 
     if (!merchant->hasItem(type)) {
@@ -141,7 +142,7 @@ void Shop::showShopUI() {
     if (!merchant || !player || !inventory) return;
 
     int choice = -1;
-    while (true) {
+    while (isShopOpen) {
         merchant->showGoodsList();
         std::cout << "\n[Shop] Choose an option:\n";
         std::cout << "1. Buy Sword (+10 ATK)\n";
