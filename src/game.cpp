@@ -7,6 +7,8 @@
 #include "mapgenerator.h"
 #include "room.h"
 #include "battlesystem.h"
+#include "monster.h"
+#include "savegame.h"
 #include "shop.h"
 #include "utils.h"
 #include "merchant.h"
@@ -324,3 +326,8 @@ void Game::showGameResult() {
     pause();
 }
 
+void Game::pause() {
+    std::cout << "\nPress Anykey to continue...";
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::cin.get();
+}
