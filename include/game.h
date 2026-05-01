@@ -43,6 +43,9 @@ public:
     void showMainMenu();     // Displays new game, load game, exit
     void selectDifficulty(); // Lets player choose difficulty
     void initGame();         // Starts a new game with chosen difficulty
+    void saveGame();
+    void loadGame();
+    void pause();
 
     // Main game loop
     void gameLoop();         // Runs the core gameplay

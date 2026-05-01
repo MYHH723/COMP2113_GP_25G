@@ -5,9 +5,6 @@
 #include "third_party/json/single_include/nlohmann/json.hpp"
 using json = nlohmann::json;
 
-class Game;  
+// 全局函数声明已删除，因为实现是 Game 的成员函数
 
-bool saveGame();
-bool loadGame();
-
-#endif 
+#endif
