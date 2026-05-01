@@ -52,25 +52,25 @@ void Room::generateRoomContent(int diff)
         // Normal rooms: 1-3 monsters, 0-2 traps (based on difficulty)
         switch (diff)
         {
-        case 0: // Easy: 1-2 monsters, 0-1 traps
+        case 0: // Easy: 1-2 monsters, 1-2 traps
             monsterCount = 1 + rand() % 2;
-            trapCount = rand() % 2;
+            trapCount = 1 + rand() % 2;
             break;
-        case 1: // Normal: 1-3 monsters, 0-2 traps
+        case 1: // Normal: 1-3 monsters, 1-3 traps
             monsterCount = 1 + rand() % 3;
-            trapCount = rand() % 3;
-            break;
-        case 2: // Hard: 2-4 monsters, 1-3 traps
-            monsterCount = 2 + rand() % 3;
             trapCount = 1 + rand() % 3;
+            break;
+        case 2: // Hard: 2-4 monsters, 2-4 traps
+            monsterCount = 2 + rand() % 3;
+            trapCount = 2 + rand() % 3;
             break;
         }
         break;
 
     case BOSS:
-        // Boss rooms: 1 powerful monster, 1-2 traps
+        // Boss rooms: 1 powerful monster, 2-3 traps
         monsterCount = 1;
-        trapCount = 1 + rand() % 2;
+        trapCount = 2 + rand() % 2;
         break;
 
     case SHOP:
@@ -80,9 +80,9 @@ void Room::generateRoomContent(int diff)
         break;
 
     case TREASURE:
-        // Treasure rooms: 0-1 weak monster, no traps
+        // Treasure rooms: 0-1 weak monster, small chance of 1 trap
         monsterCount = rand() % 2; // 0 or 1
-        trapCount = 0;
+        trapCount = (rand() % 100 < 35) ? 1 : 0;
         break;
     }
 
@@ -100,7 +100,7 @@ void Room::generateRoomContent(int diff)
         Trap *trap = new Trap();
 
         // Randomly select trap type
-        TrapType type;
+        TrapType type = TrapType::SPIKE_PIT;
         int trapRoll = rand() % 4;
         switch (trapRoll)
         {
@@ -115,6 +115,8 @@ void Room::generateRoomContent(int diff)
             break;
         case 3:
             type = TrapType::FIRE_BLAST;
+            break;
+        default:
             break;
         }
 

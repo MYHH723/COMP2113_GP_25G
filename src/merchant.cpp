@@ -3,7 +3,8 @@
 #include "types.h"
 #include <iostream>
 
-Merchant::Merchant(int gameDiff, int seed) : currentDiff(gameDiff), isAvailable(true) {
+Merchant::Merchant(int gameDiff, int seed) : isAvailable(true), currentDiff(gameDiff) {
+    (void)seed;
     initMerchant();
 }
 
@@ -44,17 +45,17 @@ void Merchant::restockGoods(ItemType type) {
 
     if (type == POTION) {
         name = "Potion";
-        effectValue = 30;
+        effectValue = 16;
         cost = 20;
         rarity = MEDIUM;
     } else if (type == WEAPON) {
-        name = "Iron Sword";
-        effectValue = 8;
+        name = "Sword";
+        effectValue = 10;
         cost = 25;
         rarity = MEDIUM;
     } else if (type == ARMOR) {
-        name = "Iron Armor";
-        effectValue = 5;
+        name = "Armor";
+        effectValue = 10;
         cost = 22;
         rarity = MEDIUM;
     }

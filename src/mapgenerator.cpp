@@ -1,194 +1,131 @@
-#include <cstdlib>
-#include <algorithm>
+// mapgenerator.cpp
 #include "mapgenerator.h"
 
-// Constructor
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
+
 MapGenerator::MapGenerator()
-    : totalRooms(0), difficulty(0), shopFrequency(0) {}
-
-// Destructor
-MapGenerator::~MapGenerator()
-{
-    for (auto room : generatedRooms)
-        delete room;
+    : totalRooms(0), difficulty(1), shopFrequency(4) {
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
 }
 
-void MapGenerator::initMapGenerator(int numRooms, int diff)
-{
-    totalRooms = numRooms;
-    difficulty = diff;
-
-    // Set shop frequency based on difficulty
-    switch (difficulty)
-    {
-    case 0: // Easy
-        shopFrequency = 3;
-        break;
-    case 1: // Normal
-        shopFrequency = 4;
-        break;
-    case 2: // Hard
-        shopFrequency = 5;
-        break;
-    default:
-        shopFrequency = 4;
-    }
+MapGenerator::MapGenerator(int seed)
+    : totalRooms(0), difficulty(1), shopFrequency(4) {
+    std::srand(static_cast<unsigned>(seed));
 }
 
-void MapGenerator::generateMap()
-{
-    // Clear previous map
-    for (auto room : generatedRooms)
-        delete room;
+MapGenerator::~MapGenerator() {
+    // Rooms are owned and deleted by Game.
     generatedRooms.clear();
+}
 
-    // Generate each room
-    for (int i = 0; i < totalRooms; i++)
-    {
-        Room *room = generateRoom(i, i);
+void MapGenerator::initMapGenerator(int numRooms, int diff) {
+    totalRooms = std::max(1, numRooms);
+    difficulty = std::max(0, std::min(diff, 2));
+    shopFrequency = 5 - difficulty; // easy=5, normal=4, hard=3
+    if (shopFrequency < 2) shopFrequency = 2;
+}
+
+void MapGenerator::generateMap() {
+    generatedRooms.clear();
+    generatedRooms.reserve(static_cast<size_t>(totalRooms));
+
+    for (int roomNumber = 1; roomNumber <= totalRooms; ++roomNumber) {
+        Room* room = generateRoom(roomNumber, roomNumber);
         generatedRooms.push_back(room);
     }
 }
 
-Room *MapGenerator::generateRoom(int roomId, int roomNumber)
-{
-    Room *room = new Room();
-    RoomType type = determineRoomType(roomNumber);
+Room* MapGenerator::generateRoom(int roomId, int roomNumber) {
+    Room* room = new Room();
+
+    RoomType type = NORMAL;
+    if (roomNumber >= totalRooms) {
+        // Requirement: last room is always a boss room.
+        type = BOSS;
+    } else {
+        // Random room type generation for non-final rooms.
+        // We keep NORMAL as the most frequent outcome.
+        int roll = std::rand() % 100; // 0-99
+        if (roll < 65) {
+            type = NORMAL;     // 65%
+        } else if (roll < 80) {
+            type = SHOP;       // 15%
+        } else if (roll < 92) {
+            type = TREASURE;   // 12%
+        } else {
+            type = BOSS;       // 8%
+        }
+    }
 
     room->initRoom(roomId, difficulty, type);
     room->generateRoomContent(difficulty);
-
-    // Handle shop assignment
-    if (shouldHaveShop(roomNumber))
-    {
-        room->setHasShop(true);
-    }
-
+    room->setHasShop(type == SHOP);
     return room;
 }
 
-RoomType MapGenerator::determineRoomType(int roomNumber)
-{
-    // Last room is always BOSS or TREASURE
-    if (isLastRoom(roomNumber))
-    {
-        // 50% chance for boss, 50% for treasure in final room
-        return (rand() % 2 == 0) ? BOSS : TREASURE;
-    }
+void MapGenerator::determineRoomType(Room* room, int roomNumber) {
+    if (room == nullptr) return;
+    RoomType type = determineRoomType(roomNumber);
+    room->setRoomType(type);
+    room->setHasShop(type == SHOP);
+}
 
-    // Check if this should be a boss room based on difficulty
-    if (isBossRoom(roomNumber))
-    {
-        return BOSS;
-    }
-
-    // Check for shop rooms
-    if (shouldHaveShop(roomNumber))
-    {
-        // 70% shop, 30% treasure
-        return (rand() % 100 < 70) ? SHOP : TREASURE;
-    }
-
-    // 10% chance for treasure room in random positions
-    if (rand() % 100 < 10)
-    {
-        return TREASURE;
-    }
-
-    // Default: normal combat room
+RoomType MapGenerator::determineRoomType(int roomNumber) {
+    if (roomNumber == totalRooms) return TREASURE;
+    if (roomNumber > 0 && roomNumber < totalRooms && (roomNumber % 5) == 0) return BOSS;
+    if (shouldHaveShop(roomNumber)) return SHOP;
     return NORMAL;
 }
 
-bool MapGenerator::isBossRoom(int roomNumber)
-{
-    switch (difficulty)
-    {
-    case 0: // Easy: 1 boss at room 7 (0-indexed)
-        return (roomNumber == 7);
-
-    case 1: // Normal: 2 bosses at rooms 6 and 13 (0-indexed)
-        return (roomNumber == 6 || roomNumber == 13);
-
-    case 2: // Hard: 3 bosses at rooms 5, 11, and 18 (0-indexed)
-        return (roomNumber == 5 || roomNumber == 11 || roomNumber == 18);
-
-    default:
-        return false;
-    }
-}
-
-bool MapGenerator::isLastRoom(int roomNumber)
-{
-    return (roomNumber == totalRooms - 1);
-}
-
-bool MapGenerator::shouldHaveShop(int roomNumber)
-{
-    // Skip first room (starting room) and boss rooms
-    if (roomNumber == 0 || isBossRoom(roomNumber))
-        return false;
-
-    // Last room shouldn't be a shop
-    if (isLastRoom(roomNumber))
-        return false;
-
-    // Shop every N rooms (with some randomness)
-    int baseFrequency = shopFrequency;
-    int variation = (rand() % 2); // +/- 1 variation
-
-    if (roomNumber % (baseFrequency + variation) == 0)
-        return true;
-
-    return false;
-}
-
-int MapGenerator::getRandomMonsterCount(int difficulty)
-{
-    switch (difficulty)
-    {
-    case 0: // Easy: 1-2 monsters
-        return 1 + rand() % 2;
-    case 1: // Normal: 1-3 monsters
-        return 1 + rand() % 3;
-    case 2: // Hard: 2-4 monsters
-        return 2 + rand() % 3;
-    default:
-        return 1 + rand() % 2;
-    }
-}
-
-int MapGenerator::getRandomTrapCount(int difficulty)
-{
-    switch (difficulty)
-    {
-    case 0: // Easy: 0-1 traps
-        return rand() % 2;
-    case 1: // Normal: 0-2 traps
-        return rand() % 3;
-    case 2: // Hard: 1-3 traps
-        return 1 + rand() % 3;
-    default:
-        return rand() % 2;
-    }
-}
-
-// Getters
-std::vector<Room *> MapGenerator::getGeneratedRooms() const
-{
+std::vector<Room*> MapGenerator::getGeneratedRooms() const {
     return generatedRooms;
 }
 
-int MapGenerator::getTotalRooms() const
-{
+int MapGenerator::getTotalRooms() const {
     return totalRooms;
 }
 
-Room *MapGenerator::getRoomById(int roomId)
-{
-    for (auto room : generatedRooms)
-    {
-        if (room->getRoomId() == roomId)
-            return room;
+int MapGenerator::getDifficulty() const {
+    return difficulty;
+}
+
+Room* MapGenerator::getRoomById(int roomId) {
+    for (Room* room : generatedRooms) {
+        if (room != nullptr && room->getRoomId() == roomId) return room;
     }
     return nullptr;
+}
+
+bool MapGenerator::shouldHaveShop(int roomNumber) {
+    if (roomNumber <= 1 || roomNumber >= totalRooms) return false;
+    if (shopFrequency <= 0) return false;
+    return (roomNumber % shopFrequency) == 0;
+}
+
+int MapGenerator::getRandomMonsterCount(int diff) {
+    int clamped = std::max(0, std::min(diff, 2));
+    switch (clamped) {
+        case 0: return 1 + (std::rand() % 2); // 1-2
+        case 1: return 1 + (std::rand() % 3); // 1-3
+        default: return 2 + (std::rand() % 3); // 2-4
+    }
+}
+
+int MapGenerator::getRandomTrapCount(int diff) {
+    int clamped = std::max(0, std::min(diff, 2));
+    switch (clamped) {
+        case 0: return std::rand() % 2; // 0-1
+        case 1: return std::rand() % 3; // 0-2
+        default: return 1 + (std::rand() % 3); // 1-3
+    }
+}
+
+int MapGenerator::countRoomsByType(RoomType type) const {
+    int count = 0;
+    for (Room* room : generatedRooms) {
+        if (room != nullptr && room->getRoomType() == type) ++count;
+    }
+    return count;
 }

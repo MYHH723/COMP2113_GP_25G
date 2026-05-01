@@ -28,8 +28,8 @@ Item::Item(int id) : id(id) {
     
     int rarity = static_cast<int>(rarityDist(rng));
     
-    int price;
-    float effectValue;
+    int price = 0;
+    float effectValue = 0.0f;
     
     std::string name;
     switch (type) {
@@ -83,6 +83,9 @@ Item::Item(int id) : id(id) {
                 price = (int_dist(rng) + 100)*0.2;
                 name = HIGH_ARMOR_NAMES[id % 10];
             }
+            break;
+        default:
+            name = "Unknown Item";
             break;
     }
     

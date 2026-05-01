@@ -18,7 +18,7 @@ Inventory::~Inventory() {}
 
 bool Inventory::add_item(const int id)
 {
-    if (items.size() < capacity)
+    if (items.size() < static_cast<std::list<int>::size_type>(capacity))
     {
         items.push_back(id);
         sort_items();

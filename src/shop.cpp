@@ -5,6 +5,7 @@
 #include "item.h"
 #include <iostream>
 #include <algorithm>
+#include <limits>
 
 Shop::Shop() {
     isShopOpen = false;
@@ -63,6 +64,19 @@ bool Shop::buyItem(ItemType type, int grade) {
     player->change_Money(-finalPrice);
     inventory->add_item(item.getId());
 
+    // Immediate effects for merchant-room purchases.
+    if (type == WEAPON) {
+        player->change_ATK(10.0f);
+        std::cout << "[Shop] Sword bonus applied: +10 ATK." << std::endl;
+    } else if (type == ARMOR) {
+        player->change_DEF(10.0f);
+        std::cout << "[Shop] Armor bonus applied: +10 DEF." << std::endl;
+    } else if (type == POTION) {
+        int heal = 10 + (std::rand() % 14); // 10-23
+        player->change_HP(static_cast<float>(heal));
+        std::cout << "[Shop] Potion used immediately: +" << heal << " HP." << std::endl;
+    }
+
     GameLogger logger;
     logger.initLogFile();
     logger.logTransaction("BUY", type, grade, finalPrice);
@@ -77,23 +91,24 @@ bool Shop::sellItem(ItemType type, int grade) {
         std::cout << "[Shop] Shop is closed." << std::endl;
         return false;
     }
-    if (!merchant->hasItem(type)) {
-        std::cout << "[Shop] Item not available." << std::endl;
-        return false;
-    }
-
-    Item item = merchant->getItem(type);
-    int itemId = item.getId();
-
+    int targetId = -1;
     const auto& items = inventory->get_items();
-    auto it = std::find(items.begin(), items.end(), itemId);
-    if (it == items.end()) {
-        std::cout << "[Shop] You don't have this item." << std::endl;
+    for (int id : items) {
+        Item owned(id);
+        if (owned.getType() != type) continue;
+        if (grade >= 0 && grade <= 2 && static_cast<int>(owned.getRarity()) != grade) continue;
+        targetId = id;
+        break;
+    }
+
+    if (targetId < 0) {
+        std::cout << "[Shop] You don't have a matching item." << std::endl;
         return false;
     }
 
+    Item item(targetId);
     int sellPrice = calculateSellPrice(item);
-    inventory->remove_item(itemId);
+    inventory->remove_item(targetId);
     player->change_Money(sellPrice);
 
     GameLogger logger;
@@ -106,7 +121,31 @@ bool Shop::sellItem(ItemType type, int grade) {
 }
 
 void Shop::showShopUI() {
-    if (merchant) merchant->showGoodsList();
+    if (!merchant || !player || !inventory) return;
+
+    int choice = -1;
+    while (true) {
+        merchant->showGoodsList();
+        std::cout << "\n[Shop] Choose an option:\n";
+        std::cout << "1. Buy Sword (+10 ATK)\n";
+        std::cout << "2. Buy Potion (+10~23 HP)\n";
+        std::cout << "3. Buy Armor (+10 DEF)\n";
+        std::cout << "0. Leave Shop\n";
+        std::cout << "Choice: ";
+
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "[Shop] Invalid input.\n";
+            continue;
+        }
+
+        if (choice == 0) break;
+        if (choice == 1) buyItem(WEAPON, static_cast<int>(MEDIUM));
+        else if (choice == 2) buyItem(POTION, static_cast<int>(MEDIUM));
+        else if (choice == 3) buyItem(ARMOR, static_cast<int>(MEDIUM));
+        else std::cout << "[Shop] Invalid option.\n";
+    }
 }
 
 void Shop::closeShop() {

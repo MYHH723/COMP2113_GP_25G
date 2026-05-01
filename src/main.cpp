@@ -65,6 +65,5 @@ using namespace std;
 int main() {
     Game game;
     game.showMainMenu();
-    game.gameLoop();
     return 0;
 }

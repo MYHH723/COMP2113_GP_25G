@@ -5,16 +5,14 @@
 #include <random>
 #include <sstream>
 #include <iomanip>
-
-#ifndef DEFAULT_HP
-#define DEFAULT_HP 100.0f
-#endif
+#include <algorithm>
 
 static std::mt19937 gen(std::random_device{}());
 
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
-      isBattleActive(false), lastResult(BattleResult::ONGOING), reward{0.0f, 0.0f, 0.0f} {
+      isBattleActive(false), playerDefending(false),
+      lastResult(BattleResult::ONGOING), reward{0.0f, 0.0f, 0.0f} {
     battleLog.clear();
     battleLog.push_back("Battle system initialized");
 }
@@ -29,6 +27,7 @@ void BattleSystem::initBattle(Player* p, Monster* m) {
     currentMonster = m;
     round_count = 0;
     isBattleActive = true;
+    playerDefending = false;
     lastResult = BattleResult::ONGOING;
     reward[0] = 0.0f;
     reward[1] = 0.0f;
@@ -94,21 +93,20 @@ BattleResult BattleSystem::executeBattleRound() {
     round_count++;
     battleLog.push_back("--- Round " + std::to_string(round_count) + " ---");
     
-    std::uniform_int_distribution<> int_dist(1, static_cast<int>(player->get_HP()));     
-    float dice = static_cast<float>(int_dist(gen)) / DEFAULT_HP;
-    
-    if(dice < 0.1f) {
-        monsterAttack();
-        playerFlee();
-    } else if(dice < 0.2f) {
-        playerAttack();
-        if (currentMonster && currentMonster->get_isAlive()) {
-            monsterAttack();
-        }  
-    } else if(dice < 0.4f){
+    std::uniform_int_distribution<int> actionDist(1, 100);
+    int actionRoll = actionDist(gen);
+
+    // Every round has tactical chances: defend / counter / normal attack.
+    if (actionRoll <= 35) {
         playerDefend();
-        monsterAttack();  
-    } else{
+        monsterAttack();
+    } else if (actionRoll <= 70) {
+        bool counterSuccess = playerCounter();
+        if (!counterSuccess && currentMonster && currentMonster->get_isAlive()) {
+            // Failed counter: take 10% extra damage.
+            monsterAttack(1.10f);
+        }
+    } else {
         playerAttack();
         if (currentMonster && currentMonster->get_isAlive()) {
             monsterAttack();
@@ -149,9 +147,11 @@ int BattleSystem::playerAttack() {
         
         float reward_exp = static_cast<float>(currentMonster->getExpReward());
         float reward_gold = static_cast<float>(currentMonster->getGoldReward());
+        float reward_score = currentMonster->getScoreReward();
         
         reward[0] += reward_exp;
         reward[1] += reward_gold;
+        reward[2] += reward_score;
         
         battleLog.push_back("Gained " + std::to_string(reward_exp) + " EXP and " + 
                 std::to_string(reward_gold) + " Gold");
@@ -160,7 +160,7 @@ int BattleSystem::playerAttack() {
     return actualDamage;
 }
 
-int BattleSystem::monsterAttack() {
+int BattleSystem::monsterAttack(float extraDamageMultiplier) {
     if (!isBattleActive) {
         battleLog.push_back("Error: Battle not started");
         return 0;
@@ -171,7 +171,23 @@ int BattleSystem::monsterAttack() {
         return 0;
     }
     
-    int damage = currentMonster->attackPlayer(*player);
+    std::uniform_int_distribution<int> damageDist(
+        static_cast<int>(currentMonster->getATK() * 0.8f),
+        static_cast<int>(currentMonster->getATK() * 1.2f)
+    );
+    int baseDamage = damageDist(gen);
+
+    float effectiveDef = player->get_DEF();
+    if (playerDefending) {
+        effectiveDef *= 1.8f;
+    }
+
+    int damage = baseDamage - static_cast<int>(effectiveDef);
+    if (damage < 1) damage = 1;
+    damage = static_cast<int>(damage * extraDamageMultiplier);
+    if (damage < 1) damage = 1;
+    player->change_HP(-static_cast<float>(damage));
+    playerDefending = false;
     
     battleLog.push_back("Player remaining HP: " + std::to_string(static_cast<int>(player->get_HP())));
     
@@ -215,15 +231,47 @@ bool BattleSystem::playerDefend() {
         return false;
     }
     
-    battleLog.push_back("Player chooses to defend");
+    playerDefending = true;
+    battleLog.push_back("Player chooses to defend (defense boosted this round)");
     return true;
+}
+
+bool BattleSystem::playerCounter() {
+    if (!isBattleActive || !player || !currentMonster) return false;
+
+    // Counter chance scales with ATK and enemy difficulty proxy.
+    float atkFactor = player->get_ATK() / 250.0f;
+    float difficultyPenalty = 0.10f;
+    int enemyLevel = currentMonster->getLevel();
+    if (enemyLevel >= 5) difficultyPenalty = 0.18f;
+    else if (enemyLevel >= 3) difficultyPenalty = 0.14f;
+
+    float successRate = 0.25f + atkFactor - difficultyPenalty;
+    if (successRate < 0.08f) successRate = 0.08f;
+    if (successRate > 0.65f) successRate = 0.65f;
+
+    std::uniform_real_distribution<float> roll(0.0f, 1.0f);
+    if (roll(gen) <= successRate) {
+        battleLog.push_back("Counter success! No damage taken.");
+        playerAttack();
+        int bonusGold = std::max(1, static_cast<int>(currentMonster->getGoldReward() * 0.05f));
+        reward[1] += static_cast<float>(bonusGold);
+        battleLog.push_back("Counter bonus: +" + std::to_string(bonusGold) + " gold.");
+        return true;
+    }
+
+    battleLog.push_back("Counter failed! Incoming damage increased by 10%.");
+    return false;
 }
 
 BattleResult BattleSystem::getLastResult() const { return lastResult; }
 int BattleSystem::getRoundCount() const { return round_count; }
 bool BattleSystem::get_isBattleActive() const { return isBattleActive; }
 std::vector<std::string> BattleSystem::getBattleLog() const { return battleLog; }
-const float* BattleSystem::getRewards() const { return reward; }
+
+const float* BattleSystem::getRewards() const {
+    return reward;
+}
 
 std::string BattleSystem::showBattleLog() {
     std::stringstream ss;

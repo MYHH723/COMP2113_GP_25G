@@ -7,8 +7,6 @@
 #include "mapgenerator.h"
 #include "room.h"
 #include "battlesystem.h"
-#include "monster.h"
-#include "savegame.h"
 #include "shop.h"
 #include "utils.h"
 #include "merchant.h"
@@ -20,6 +18,7 @@
 #include <ctime>
 #include <random>
 #include <chrono>
+#include <limits>
 #include "third_party/json/single_include/nlohmann/json.hpp"  // JSON library – make sure it's included in your project
 
 using json = nlohmann::json;
@@ -59,7 +58,13 @@ void Game::showMainMenu() {
         std::cout << "2. Load Game\n";
         std::cout << "3. Exit\n";
         std::cout << "Choose: ";
-        std::cin >> choice;
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input.\n";
+            pause();
+            continue;
+        }
 
         if (choice == 1) {
             selectDifficulty();
@@ -90,7 +95,11 @@ void Game::selectDifficulty() {
     std::cout << "1. Normal (15 rooms, standard)\n";
     std::cout << "2. Hard   (20 rooms, tough monsters, high trap damage)\n";
     std::cout << "Choice: ";
-    std::cin >> difficulty;
+    if (!(std::cin >> difficulty)) {
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        difficulty = 1;
+    }
     if (difficulty < 0 || difficulty > 2) difficulty = 1;
 
     switch (difficulty) {
@@ -165,8 +174,9 @@ void Game::applyDifficultyScaling() {
 
 void Game::generateRooms() {
     // Ask MapGenerator to build the whole dungeon.
-    // The method generateAll() returns a vector of Room pointers.
+    // generateMap() must be called before reading generated rooms.
     mapGen->initMapGenerator(totalRooms, difficulty);
+    mapGen->generateMap();
     rooms = mapGen->getGeneratedRooms();
 }
 
@@ -195,7 +205,12 @@ void Game::gameLoop() {
 }
 
 void Game::enterNextRoom() {
-    if (currentRoomIndex >= static_cast<int>(rooms.size())) return;
+    if (currentRoomIndex >= static_cast<int>(rooms.size())) {
+        // Defensive guard: if rooms were not generated correctly,
+        // stop the loop instead of repeatedly showing the same room index.
+        isRunning = false;
+        return;
+    }
 
     Room* currentRoom = rooms[currentRoomIndex];
     currentRoomIndex++;
@@ -240,6 +255,7 @@ void Game::enterNextRoom() {
                     player->change_score(totalScore);
                     // 再应用本场战斗（逃跑这场）的奖励（如果有，但逃跑时怪物未死，通常没有奖励）
                     battle.applyRewards();
+                    saveGame();
                     return;
                 } else if (result == BattleResult::PLAYER_WIN) {
                     // 累积本只怪物的奖励，但不立即应用
@@ -267,7 +283,7 @@ void Game::enterNextRoom() {
             player->change_Money(totalGold);
             player->change_score(totalScore);
 
-            playerWin = true;
+            playerWin = false;
             // 显示最后一次战斗的日志（或者显示胜利信息）
             std::cout << "Room cleared! Gained " << totalExp << " EXP, " 
                       << totalGold << " Gold, " << totalScore << " Score.\n";
@@ -326,8 +342,3 @@ void Game::showGameResult() {
     pause();
 }
 
-void Game::pause() {
-    std::cout << "\nPress Anykey to continue...";
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin.get();
-}
