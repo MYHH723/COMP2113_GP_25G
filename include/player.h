@@ -1,3 +1,4 @@
+// player.h 开头部分
 #ifndef PLAYER_H
 #define PLAYER_H
 
@@ -7,6 +8,9 @@
 #include <vector>
 #include "item.h"
 #include "third_party/json/single_include/nlohmann/json.hpp"
+
+// 前向声明 Inventory 类
+class Inventory;
 
 // Player class - manages player character attributes and inventory
 class Player {

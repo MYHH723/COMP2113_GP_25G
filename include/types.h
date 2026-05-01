@@ -7,7 +7,8 @@
 enum RoomType { NORMAL, BOSS, SHOP, TREASURE };
 enum ItemType { POTION, WEAPON, ARMOR };
 enum ItemRarity { LOW, MEDIUM, HIGH };
-enum Difficulty { EASY, NORMAL, HARD };
+// types.h（修改后）
+enum Difficulty { DIFF_EASY, DIFF_NORMAL, DIFF_HARD };
 
 // 声明字符串数组（定义在 types.cpp 中）
 extern const std::string lowPotion[7];
