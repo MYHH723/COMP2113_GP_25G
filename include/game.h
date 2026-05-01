@@ -43,22 +43,18 @@ public:
     void showMainMenu();     // Displays new game, load game, exit
     void selectDifficulty(); // Lets player choose difficulty
     void initGame();         // Starts a new game with chosen difficulty
-    void saveGame();
-    void loadGame();
+    void saveGame();         // Saves current progress to data/save.json
+    void loadGame();         // Loads saved game from data/save.json
     void pause();
 
     // Main game loop
     void gameLoop();         // Runs the core gameplay
     void enterNextRoom();    // Enters the next room and processes its event
-    void pause();
 
     // Game ending
     void checkGameOver();    // Checks if player died or finished all rooms
     void showGameResult();   // Shows win / lose screen
 
-    // Save / Load (JSON format)
-    void saveGame();         // Saves current progress to data/save.json
-    void loadGame();         // Loads saved game from data/save.json
 };
 
 #endif
