@@ -15,11 +15,13 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <string>
+#include <algorithm>
 #include <ctime>
 #include <random>
 #include <chrono>
 #include <limits>
-#include "third_party/json/single_include/nlohmann/json.hpp"  // JSON library – make sure it's included in your project
+#include "third_party/json/single_include/nlohmann/json.hpp"  // JSON library - make sure it's included in your project
 
 using json = nlohmann::json;
 
@@ -35,7 +37,7 @@ const int TRAP_DAMAGE_MAX[3] = {15, 30, 50};
 // ========== Constructor & Destructor ==========
 Game::Game()
     : seed(std::time(nullptr)),difficulty(1), totalRooms(MAX_ROOMS_NORMAL), currentRoomIndex(0),
-      isRunning(false), playerWin(false), player(nullptr), mapGen(nullptr) {
+      isRunning(false), playerWin(false), pendingNewGameWelcome(false), player(nullptr), mapGen(nullptr) {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 }
 
@@ -60,11 +62,12 @@ void Game::showMainMenu() {
         std::cout << "Choose: ";
         if (!(std::cin >> choice)) {
             std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid input.\n";
+            discardRestOfLine();
+            std::cout << "Invalid input. Enter a number (1-3).\n";
             pause();
             continue;
         }
+        discardRestOfLine();
 
         if (choice == 1) {
             selectDifficulty();
@@ -89,26 +92,40 @@ void Game::showMainMenu() {
 }
 
 void Game::selectDifficulty() {
-    clearScreen();
-    std::cout << "\n=== DIFFICULTY ===\n";
-    std::cout << "0. Easy   (10 rooms, weak monsters, low trap damage)\n";
-    std::cout << "1. Normal (15 rooms, standard)\n";
-    std::cout << "2. Hard   (20 rooms, tough monsters, high trap damage)\n";
-    std::cout << "Choice: ";
-    if (!(std::cin >> difficulty)) {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        difficulty = 1;
-    }
-    if (difficulty < 0 || difficulty > 2) difficulty = 1;
+    int d = 0;
+    while (true) {
+        clearScreen();
+        std::cout << "\n=== DIFFICULTY ===\n";
+        std::cout << "1. Easy   (10 rooms, weak monsters, low trap damage)\n";
+        std::cout << "2. Normal (15 rooms, standard)\n";
+        std::cout << "3. Hard   (20 rooms, tough monsters, high trap damage)\n";
+        std::cout << "Choice (1-3): ";
 
-    switch (difficulty) {
-        case 0: totalRooms = MAX_ROOMS_EASY; break;
-        case 1: totalRooms = MAX_ROOMS_NORMAL; break;
-        case 2: totalRooms = MAX_ROOMS_HARD; break;
+        if (!(std::cin >> d)) {
+            std::cin.clear();
+            discardRestOfLine();
+            std::cout << "\nInvalid input. Enter a single whole number: 1, 2, or 3.\n";
+            pause();
+            continue;
+        }
+        discardRestOfLine();
+
+        if (d < 1 || d > 3) {
+            std::cout << "\nInvalid choice. You must enter 1, 2, or 3.\n";
+            pause();
+            continue;
+        }
+
+        difficulty = d - 1;
+        switch (difficulty) {
+            case 0: totalRooms = MAX_ROOMS_EASY; break;
+            case 1: totalRooms = MAX_ROOMS_NORMAL; break;
+            case 2: totalRooms = MAX_ROOMS_HARD; break;
+        }
+        std::cout << "\nDifficulty set. Total rooms: " << totalRooms << "\n";
+        pause();
+        return;
     }
-    std::cout << "Difficulty set. Total rooms: " << totalRooms << "\n";
-    pause();
 }
 
 void Game::initGame() {
@@ -118,12 +135,26 @@ void Game::initGame() {
     for (Room* r : rooms) delete r;
     rooms.clear();
 
-    // Get player name
-    std::string name;
+    // Get player name (line-based, same idea as battle choice: empty line re-prompts)
     clearScreen();
-    std::cout << "Enter your name: ";
-    std::cin >> name;
-    playerName = name;
+    discardRestOfLineIfBuffered();
+    while (true) {
+        std::cout << "Enter your name: " << std::flush;
+        std::string name;
+        if (!std::getline(std::cin, name)) {
+            std::cin.clear();
+            playerName = "Hero";
+            break;
+        }
+        const size_t first = name.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) {
+            std::cout << "Enter a non-empty name.\n" << std::flush;
+            continue;
+        }
+        const size_t last = name.find_last_not_of(" \t\r\n");
+        playerName = name.substr(first, last - first + 1);
+        break;
+    }
 
     // Create player (stats follow README: HP=1000, ATK=100, DEF=100, starting gold=500)
     player = new Player(playerName);
@@ -145,9 +176,7 @@ void Game::initGame() {
     currentRoomIndex = 0;
     isRunning = true;
     playerWin = false;
-
-    std::cout << "\nGame started! Good luck, " << playerName << "!\n";
-    pause();
+    pendingNewGameWelcome = true;
 }
 
 // ========== Global difficulty scaling variables ==========
@@ -166,10 +195,11 @@ void Game::applyDifficultyScaling() {
     const int TRAP_DAMAGE_MIN[] = {80, 150, 250};
     const int TRAP_DAMAGE_MAX[] = {150, 280, 450};
 
-    // Set global variables based on current difficulty
-    g_monsterHpMultiplier = MONSTER_HP_MULT[difficulty];
-    g_trapDamageMin = TRAP_DAMAGE_MIN[difficulty];
-    g_trapDamageMax = TRAP_DAMAGE_MAX[difficulty];
+    // Set global variables based on current difficulty (clamp index for corrupt saves)
+    const int di = std::max(0, std::min(2, difficulty));
+    g_monsterHpMultiplier = MONSTER_HP_MULT[di];
+    g_trapDamageMin = TRAP_DAMAGE_MIN[di];
+    g_trapDamageMax = TRAP_DAMAGE_MAX[di];
 }
 
 void Game::generateRooms() {
@@ -184,6 +214,10 @@ void Game::generateRooms() {
 void Game::gameLoop() {
     while (isRunning && currentRoomIndex < totalRooms) {
         clearScreen();
+        if (pendingNewGameWelcome) {
+            std::cout << "Game started! Good luck, " << playerName << "!\n\n";
+            pendingNewGameWelcome = false;
+        }
         std::cout << "\n===== Room " << (currentRoomIndex + 1) << " / " << totalRooms << " =====\n";
 
         // Show player status (using Player's display method)
@@ -230,8 +264,20 @@ void Game::enterNextRoom() {
             float totalGold = 0.0f;
             float totalScore = 0.0f;
 
-            for (auto monster : monsters) {
+            const size_t monsterCount = monsters.size();
+            for (size_t mi = 0; mi < monsterCount; ++mi) {
+                Monster* monster = monsters[mi];
+                if (!monster) continue;
                 if (playerLost || playerFled) break;
+
+                if (mi > 0) {
+                    std::cout << "\n========================================\n";
+                    std::cout << "  Another foe appears! ("
+                              << (mi + 1) << " / " << monsterCount << ")\n";
+                    std::cout << "  Ready your steel - the hall is not yet quiet.\n";
+                    std::cout << "========================================\n";
+                    pause();
+                }
 
                 battle.initBattle(player, monster);
                 battle.startBattle();
@@ -285,8 +331,8 @@ void Game::enterNextRoom() {
 
             playerWin = false;
             // 显示最后一次战斗的日志（或者显示胜利信息）
-            std::cout << "Room cleared! Gained " << totalExp << " EXP, " 
-                      << totalGold << " Gold, " << totalScore << " Score.\n";
+            std::cout << "Room cleared! Gained " << formatFixed2(totalExp) << " EXP, "
+                      << formatFixed2(totalGold) << " Gold, " << formatFixed2(totalScore) << " Score.\n";
             std::cout << battle.showBattleLog() << std::endl;
             break;
         }

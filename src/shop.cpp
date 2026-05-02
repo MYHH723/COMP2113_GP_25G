@@ -2,9 +2,10 @@
 #include "merchant.h"
 #include "player.h"
 #include "item.h"
+#include "utils.h"
+#include "consoleUI.h"
 #include <iostream>
 #include <algorithm>
-#include <limits>
 #include <random>
 
 namespace {
@@ -218,19 +219,31 @@ void Shop::showShopUI() {
 
         if (!(std::cin >> choice)) {
             std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "[Shop] Invalid input.\n";
+            discardRestOfLine();
+            std::cout << "[Shop] Invalid input. Enter a number (0-3).\n";
             continue;
         }
+        discardRestOfLine();
 
         if (choice == 0) {
             sayMerchant(kFarewell, sizeof(kFarewell) / sizeof(kFarewell[0]));
             break;
         }
-        if (choice == 1) buyItem(WEAPON, static_cast<int>(MEDIUM));
-        else if (choice == 2) buyItem(POTION, static_cast<int>(MEDIUM));
-        else if (choice == 3) buyItem(ARMOR, static_cast<int>(MEDIUM));
-        else std::cout << "[Shop] Invalid option.\n";
+
+        auto refreshStatusAfterBuy = [&]() {
+            clearScreen();
+            ConsoleUI::showPlayerStatus(*player);
+        };
+
+        if (choice == 1) {
+            if (buyItem(WEAPON, static_cast<int>(MEDIUM))) refreshStatusAfterBuy();
+        } else if (choice == 2) {
+            if (buyItem(POTION, static_cast<int>(MEDIUM))) refreshStatusAfterBuy();
+        } else if (choice == 3) {
+            if (buyItem(ARMOR, static_cast<int>(MEDIUM))) refreshStatusAfterBuy();
+        } else {
+            std::cout << "[Shop] Invalid option.\n";
+        }
     }
 }
 

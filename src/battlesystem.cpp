@@ -1,16 +1,43 @@
 #include "battlesystem.h"
 #include "player.h"
 #include "monster.h"
+#include "utils.h"
 #include <iostream>
 #include <random>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
-#include <limits>
+#include <string>
 
 static std::mt19937 gen(std::random_device{}());
 
 namespace {
+
+/** One line = one choice; avoids extra Enter from mixing formatted cin and line input. */
+int readBattleChoice14() {
+    discardRestOfLineIfBuffered();
+    while (true) {
+        std::cout << "Choice (1-4): " << std::flush;
+        std::string line;
+        if (!std::getline(std::cin, line)) {
+            std::cin.clear();
+            std::cout << "\nInput error. Try again.\n" << std::flush;
+            continue;
+        }
+        size_t i = 0;
+        while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) ++i;
+        if (i >= line.size()) {
+            // Leading newline so this is never glued to the prompt on the same line.
+            std::cout << "\nEnter a number from 1 to 4.\n" << std::flush;
+            continue;
+        }
+        const char c = line[i];
+        if (c >= '1' && c <= '4')
+            return c - '0';
+        std::cout << "\nInvalid. Enter 1, 2, 3, or 4.\n" << std::flush;
+    }
+}
+
 
 const char* const kLinesAttackAfter[] = {
     "Your steel finds flesh; the beast reels from the blow.",
@@ -112,6 +139,8 @@ void BattleSystem::startBattle() {
     
     isBattleActive = true;
     battleLog.push_back("=== Battle Start ===");
+    // So the first getline(choice) does not swallow a stray newline left by cin >> elsewhere.
+    discardRestOfLineIfBuffered();
 }
 
 void BattleSystem::endBattle() {
@@ -163,18 +192,16 @@ BattleResult BattleSystem::executeBattleRound() {
               << "  |  " << currentMonster->getName()
               << " HP: " << currentMonster->getHP() << "\n";
     std::cout << "1. Attack   2. Defend   3. Counter   4. Flee\n";
-    std::cout << "Choice (1-4): " << std::flush;
 
-    int choice = 0;
-    while (true) {
-        if (std::cin >> choice) {
-            if (choice >= 1 && choice <= 4) break;
-            std::cout << "Invalid. Enter 1-4: " << std::flush;
-        } else {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid input. Enter 1-4: " << std::flush;
-        }
+    const int choice = readBattleChoice14();
+
+    {
+        const char* cmd = "Unknown";
+        if (choice == 1) cmd = "Attack";
+        else if (choice == 2) cmd = "Defend";
+        else if (choice == 3) cmd = "Counter";
+        else if (choice == 4) cmd = "Flee";
+        battleLog.push_back(std::string("Your command: ") + cmd);
     }
 
     if (choice == 1) {
@@ -209,6 +236,7 @@ BattleResult BattleSystem::executeBattleRound() {
                             sizeof(kLinesFleeFail) / sizeof(kLinesFleeFail[0]));
         }
     }
+
     return lastResult;
 }
 
@@ -250,8 +278,8 @@ int BattleSystem::playerAttack() {
         reward[1] += reward_gold;
         reward[2] += reward_score;
         
-        battleLog.push_back("Gained " + std::to_string(reward_exp) + " EXP and " + 
-                std::to_string(reward_gold) + " Gold");
+        battleLog.push_back("Gained " + formatFixed2(reward_exp) + " EXP and " +
+                formatFixed2(reward_gold) + " Gold");
     }
     battleLog.push_back("Monster remaining HP: " + std::to_string(currentMonster->getHP()));
     return actualDamage;

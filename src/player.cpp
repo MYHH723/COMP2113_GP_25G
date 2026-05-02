@@ -1,6 +1,7 @@
 #include "player.h"
 #include "savegame.h"
 #include "item.h"
+#include "utils.h"
 #include "types.h"
 #include <iostream>
 #include <fstream>
@@ -60,23 +61,22 @@ void Inventory::sort_items()
         {ItemType::ARMOR, 2},
         {ItemType::POTION, 1}};
 
-    items.sort([&typePriority, this](const int &idA, const int &idB)
-               {
-        // Get type from itemDatabase using id (type is ItemType enum)
-        ItemType typeA = itemDatabase[idA].type;
-        ItemType typeB = itemDatabase[idB].type;
+    items.sort([&typePriority, this](const int &idA, const int &idB) {
+        const auto itA = itemDatabase.find(idA);
+        const auto itB = itemDatabase.find(idB);
+        if (itA == itemDatabase.end() && itB == itemDatabase.end())
+            return idA < idB;
+        if (itA == itemDatabase.end()) return false;
+        if (itB == itemDatabase.end()) return true;
 
-        // First compare by type priority (higher first)
-        int priA = typePriority.count(typeA) ? typePriority[typeA] : 0;
-        int priB = typePriority.count(typeB) ? typePriority[typeB] : 0;
-        if (priA != priB) {
-            return priA > priB;
-        }
-        
-        // Then by grade (if exists) or other attributes
-        // return itemDatabase[idA].grade > itemDatabase[idB].grade;
-        
-        return false; });
+        const ItemType typeA = itA->second.type;
+        const ItemType typeB = itB->second.type;
+
+        const int priA = typePriority.count(typeA) ? typePriority[typeA] : 0;
+        const int priB = typePriority.count(typeB) ? typePriority[typeB] : 0;
+        if (priA != priB) return priA > priB;
+        return false;
+    });
 }
 
 int Inventory::get_capacity() const
@@ -268,10 +268,18 @@ void Player::level_up()
         std::cout << "3. HP" << std::endl;
 
         std::string choice;
-        while(std::cin >> choice) {
+        while (true) {
+            if (!(std::cin >> choice)) {
+                std::cin.clear();
+                discardRestOfLine();
+                std::cout << "Invalid input. Enter 1, 2, or 3." << std::endl;
+                continue;
+            }
             if (choice == "1" || choice == "ATK" || choice == "2" || choice == "DEF" || choice == "3" || choice == "HP") {
+                discardRestOfLine();
                 break;
             }
+            discardRestOfLine();
             std::cout << "Invalid choice. Please enter 1, 2, or 3." << std::endl;
         }
 
@@ -374,47 +382,67 @@ json Player::toJson() const {
 
 void Player::fromJson(const json& j) {
     // === Load stats ===
-    if (j.contains("stats")) {
+    if (j.contains("stats") && j["stats"].is_object()) {
         const auto& stats = j["stats"];
-        if (stats.contains("LEVEL")) state["LEVEL"] = stats["LEVEL"].get<float>();
-        if (stats.contains("ATK")) state["ATK"] = stats["ATK"].get<float>();
-        if (stats.contains("DEF")) state["DEF"] = stats["DEF"].get<float>();
-        if (stats.contains("HP")) {
+        if (stats.contains("LEVEL") && stats["LEVEL"].is_number())
+            state["LEVEL"] = stats["LEVEL"].get<float>();
+        if (stats.contains("ATK") && stats["ATK"].is_number())
+            state["ATK"] = stats["ATK"].get<float>();
+        if (stats.contains("DEF") && stats["DEF"].is_number())
+            state["DEF"] = stats["DEF"].get<float>();
+        if (stats.contains("HP") && stats["HP"].is_number()) {
             state["HP"] = stats["HP"].get<float>();
-            if (state["HP"] <= 0) isAlive = false;  // Sync alive flag
+            if (state["HP"] <= 0) isAlive = false;
         }
-        if (stats.contains("EXP")) state["EXP"] = stats["EXP"].get<float>();
-        if (stats.contains("Money")) state["Money"] = stats["Money"].get<float>();
-        if (stats.contains("maxHP")) maxHP = stats["maxHP"].get<float>();
+        if (stats.contains("EXP") && stats["EXP"].is_number())
+            state["EXP"] = stats["EXP"].get<float>();
+        if (stats.contains("Money") && stats["Money"].is_number())
+            state["Money"] = stats["Money"].get<float>();
+        if (stats.contains("maxHP") && stats["maxHP"].is_number())
+            maxHP = stats["maxHP"].get<float>();
     }
-    
+
     // === Load status flags ===
-    if (j.contains("status")) {
+    if (j.contains("status") && j["status"].is_object()) {
         const auto& status = j["status"];
-        if (status.contains("isAlive")) isAlive = status["isAlive"].get<bool>();
-        if (status.contains("score")) score = status["score"].get<float>();
+        if (status.contains("isAlive") && status["isAlive"].is_boolean())
+            isAlive = status["isAlive"].get<bool>();
+        if (status.contains("score") && status["score"].is_number())
+            score = status["score"].get<float>();
     }
-    
+
     // === Load inventory (clear first, then restore) ===
+    static const int kMaxItemId = 50000000;
     if (j.contains("inventory") && j["inventory"].is_array()) {
-        inventory->clear_items();  
+        inventory->clear_items();
         for (const auto& itemId : j["inventory"]) {
-            int id = itemId.get<int>();
+            if (!itemId.is_number_integer()) continue;
+            const int id = itemId.get<int>();
+            if (id <= 0 || id > kMaxItemId) continue;
             Item temp(id);
-            inventory->add_item(id);
+            (void)temp;
+            if (!inventory->add_item(id)) break;
         }
     }
-    
+
     // === Load equipped items ===
-    if (j.contains("equipped")) {
+    if (j.contains("equipped") && j["equipped"].is_object()) {
         const auto& equipped = j["equipped"];
-        if (equipped.contains("WEAPON")) {
-            equippedItems["WEAPON"] = equipped["WEAPON"];
-            Item temp(equippedItems["WEAPON"]);
+        if (equipped.contains("WEAPON") && equipped["WEAPON"].is_number_integer()) {
+            const int wid = equipped["WEAPON"].get<int>();
+            if (wid >= 0 && wid <= kMaxItemId) {
+                equippedItems["WEAPON"] = wid;
+                Item temp(wid);
+                (void)temp;
+            }
         }
-        if (equipped.contains("ARMOR")) {
-            equippedItems["ARMOR"] = equipped["ARMOR"];
-            Item temp(equippedItems["ARMOR"]);
+        if (equipped.contains("ARMOR") && equipped["ARMOR"].is_number_integer()) {
+            const int aid = equipped["ARMOR"].get<int>();
+            if (aid >= 0 && aid <= kMaxItemId) {
+                equippedItems["ARMOR"] = aid;
+                Item temp(aid);
+                (void)temp;
+            }
         }
     }
 }

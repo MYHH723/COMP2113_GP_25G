@@ -9,6 +9,9 @@
 #include <cstdlib>
 #include <chrono>
 #include <thread>
+#include <limits>
+#include <sstream>
+#include <iomanip>
 
 void clearScreen() {
 #ifdef _WIN32
@@ -19,9 +22,39 @@ void clearScreen() {
 }
 
 void pause() {
-    std::cout << "\nPress Enter to continue...";
-    std::cin.ignore();
+    std::cout << "\nPress Enter to continue..." << std::flush;
+    std::cin.clear();
+    // If the buffer is empty, ignore(max,'\n') would block and consume the first Enter,
+    // then get() would require a second Enter. Only discard a pending line when data is already buffered.
+    std::streambuf* sb = std::cin.rdbuf();
+    if (sb) {
+        std::streamsize ready = sb->in_avail();
+        if (ready > 0) {
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+    }
     std::cin.get();
+}
+
+void discardRestOfLine() {
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+void discardRestOfLineIfBuffered() {
+    std::cin.clear();
+    std::streambuf* sb = std::cin.rdbuf();
+    if (sb) {
+        std::streamsize ready = sb->in_avail();
+        if (ready > 0) {
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+    }
+}
+
+std::string formatFixed2(float value) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << value;
+    return oss.str();
 }
 
 int getRandom(int min, int max) {
