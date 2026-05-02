@@ -8,12 +8,21 @@
 #include <iomanip>
 #include <algorithm>
 #include <string>
+#include <cstdlib>
+#include <cerrno>
 
 static std::mt19937 gen(std::random_device{}());
 
 namespace {
 
-/** One line = one choice; avoids extra Enter from mixing formatted cin and line input. */
+std::string trimOuterWhitespace(const std::string& s) {
+    const auto a = s.find_first_not_of(" \t\r\n");
+    if (a == std::string::npos) return {};
+    const auto b = s.find_last_not_of(" \t\r\n");
+    return s.substr(a, b - a + 1);
+}
+
+/** One line = one choice; whole token must be integer 1-4 (not e.g. "32767" -> Counter). */
 int readBattleChoice14() {
     discardRestOfLineIfBuffered();
     while (true) {
@@ -24,17 +33,23 @@ int readBattleChoice14() {
             std::cout << "\nInput error. Try again.\n" << std::flush;
             continue;
         }
-        size_t i = 0;
-        while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) ++i;
-        if (i >= line.size()) {
-            // Leading newline so this is never glued to the prompt on the same line.
+        const std::string trimmed = trimOuterWhitespace(line);
+        if (trimmed.empty()) {
             std::cout << "\nEnter a number from 1 to 4.\n" << std::flush;
             continue;
         }
-        const char c = line[i];
-        if (c >= '1' && c <= '4')
-            return c - '0';
-        std::cout << "\nInvalid. Enter 1, 2, 3, or 4.\n" << std::flush;
+        errno = 0;
+        char* endptr = nullptr;
+        const long v = std::strtol(trimmed.c_str(), &endptr, 10);
+        if (errno == ERANGE || endptr == trimmed.c_str() || *endptr != '\0') {
+            std::cout << "\nInvalid. Enter 1, 2, 3, or 4.\n" << std::flush;
+            continue;
+        }
+        if (v < 1 || v > 4) {
+            std::cout << "\nInvalid. Enter 1, 2, 3, or 4.\n" << std::flush;
+            continue;
+        }
+        return static_cast<int>(v);
     }
 }
 

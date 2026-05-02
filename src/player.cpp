@@ -61,7 +61,7 @@ void Inventory::sort_items()
         {ItemType::ARMOR, 2},
         {ItemType::POTION, 1}};
 
-    items.sort([&typePriority, this](const int &idA, const int &idB) {
+    items.sort([&typePriority](const int &idA, const int &idB) {
         const auto itA = itemDatabase.find(idA);
         const auto itB = itemDatabase.find(idB);
         if (itA == itemDatabase.end() && itB == itemDatabase.end())

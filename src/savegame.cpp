@@ -67,9 +67,13 @@ void Game::saveGame() {
     }
 
 #ifdef _WIN32
-    std::system("if not exist data mkdir data >nul 2>nul");
+    if (std::system("if not exist data mkdir data >nul 2>nul") != 0) {
+        /* best-effort; save may still work if data exists */
+    }
 #else
-    std::system("mkdir -p data >/dev/null 2>&1");
+    if (std::system("mkdir -p data >/dev/null 2>&1") != 0) {
+        /* best-effort */
+    }
 #endif
 
     const std::string tmpPath = "data/save.json.tmp";

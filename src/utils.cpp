@@ -12,6 +12,94 @@
 #include <limits>
 #include <sstream>
 #include <iomanip>
+#include <string>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <conio.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#endif
+
+namespace {
+
+#ifdef _WIN32
+/** Prefer Console API so Mintty/Cursor terminals still suppress junk keys when attached to console. */
+void waitEnterSilently() {
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode = 0;
+    if (hIn != INVALID_HANDLE_VALUE && hIn != nullptr && GetConsoleMode(hIn, &mode)) {
+        const DWORD saved = mode;
+        DWORD tweaked = mode & ~(DWORD)(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+        if (SetConsoleMode(hIn, tweaked)) {
+            char ch = 0;
+            DWORD nr = 0;
+            while (ReadConsoleA(hIn, &ch, 1, &nr, nullptr) && nr == 1) {
+                if (ch == '\r' || ch == '\n') break;
+            }
+            SetConsoleMode(hIn, saved);
+            std::cin.clear();
+            return;
+        }
+        SetConsoleMode(hIn, saved);
+    }
+    for (;;) {
+        const int c = _getch();
+        if (c == '\r' || c == '\n') break;
+    }
+    std::cin.clear();
+}
+#else
+struct TermiosGuard {
+    termios old{};
+    bool ok = false;
+
+    TermiosGuard() {
+        if (!isatty(STDIN_FILENO)) return;
+        if (tcgetattr(STDIN_FILENO, &old) != 0) return;
+        termios t = old;
+        // Raw-ish byte reads: avoids std::getline + terminal echo quirks on macOS/Linux terminals.
+        t.c_lflag &= static_cast<tcflag_t>(~(ECHO | ICANON));
+        t.c_cc[VMIN] = 1;
+        t.c_cc[VTIME] = 0;
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &t) != 0) return;
+        ok = true;
+    }
+
+    ~TermiosGuard() {
+        if (ok) tcsetattr(STDIN_FILENO, TCSANOW, &old);
+    }
+
+    TermiosGuard(const TermiosGuard&) = delete;
+    TermiosGuard& operator=(const TermiosGuard&) = delete;
+};
+
+void waitEnterSilently() {
+    if (!isatty(STDIN_FILENO)) {
+        std::cin.get();
+        return;
+    }
+    std::cout.flush();
+    TermiosGuard guard;
+    if (!guard.ok) {
+        std::cin.get();
+        return;
+    }
+    unsigned char ch = 0;
+    while (true) {
+        const ssize_t n = read(STDIN_FILENO, &ch, 1);
+        if (n <= 0) break;
+        if (ch == '\n' || ch == '\r') break;
+    }
+    std::cin.clear();
+}
+#endif
+
+} // namespace
 
 void clearScreen() {
 #ifdef _WIN32
@@ -24,16 +112,8 @@ void clearScreen() {
 void pause() {
     std::cout << "\nPress Enter to continue..." << std::flush;
     std::cin.clear();
-    // If the buffer is empty, ignore(max,'\n') would block and consume the first Enter,
-    // then get() would require a second Enter. Only discard a pending line when data is already buffered.
-    std::streambuf* sb = std::cin.rdbuf();
-    if (sb) {
-        std::streamsize ready = sb->in_avail();
-        if (ready > 0) {
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        }
-    }
-    std::cin.get();
+    discardRestOfLineIfBuffered();
+    waitEnterSilently();
 }
 
 void discardRestOfLine() {

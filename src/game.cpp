@@ -30,10 +30,6 @@ const int MAX_ROOMS_EASY   = 10;
 const int MAX_ROOMS_NORMAL = 15;
 const int MAX_ROOMS_HARD   = 20;
 
-const float MONSTER_HP_MULTIPLIER[3] = {0.8f, 1.0f, 1.3f};
-const int TRAP_DAMAGE_MIN[3] = {5, 15, 30};   // Easy, Normal, Hard
-const int TRAP_DAMAGE_MAX[3] = {15, 30, 50};
-
 // ========== Constructor & Destructor ==========
 Game::Game()
     : seed(std::time(nullptr)),difficulty(1), totalRooms(MAX_ROOMS_NORMAL), currentRoomIndex(0),
