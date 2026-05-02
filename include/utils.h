@@ -20,4 +20,9 @@ std::string formatFixed2(float value);
 int getRandom(int min, int max);          // inclusive random int
 void printWithDelay(const std::string& text, int ms); // slow print
 
+/** ASCII art when entering battle vs Goblin / Skeleton Warrior (no-op for other names). */
+void printMonsterEncounterArt(const std::string& monsterName);
+/** Victory banner by difficulty: 0 Easy, 1 Normal, 2 Hard. */
+void printVictoryArt(int difficulty);
+
 #endif
