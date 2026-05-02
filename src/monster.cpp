@@ -5,28 +5,33 @@
 #include <string>
 #include <cmath>
 
+// Random number generator for monster attack calculations
 static std::mt19937 gen(std::random_device{}());
 
+// Default constructor: Initialize monster attributes to default values
 Monster::Monster() 
     : name(""), hp(0), maxHp(0), atk(0), def(0), 
       exp_reward(0), gold_reward(0), score_reward(0.0f), level(1), isAlive(true) {
 }
 
+// Destructor
 Monster::~Monster() {
 }
 
+// Initialize monster stats based on game difficulty and level
 void Monster::initMonster(int difficulty, int monsterLevel) {
     level = monsterLevel;
     
-    // Game passes difficulty 0=Easy, 1=Normal, 2=Hard (see Game::selectDifficulty).
+    // Difficulty multiplier: 0 = Easy, 1 = Normal, 2 = Hard
     float difficultyMultiplier = 1.0f;
     switch (difficulty) {
         case 0: difficultyMultiplier = 0.8f; break;
         case 1: difficultyMultiplier = 1.0f; break;
-        case 2: difficultyMultiplier = 1.15f; break; // Hard: stronger monsters, not extra mob count
+        case 2: difficultyMultiplier = 1.15f; break;
         default: difficultyMultiplier = 1.0f; break;
     }
     
+    // Set monster type and stats based on level
     if (level <= 2) {
         name = "Goblin";
         maxHp = static_cast<int>(30 * difficultyMultiplier * (1 + 0.1 * level));
@@ -65,6 +70,7 @@ void Monster::initMonster(int difficulty, int monsterLevel) {
     isAlive = true;
 }
 
+// Getter methods for monster attributes
 std::string Monster::getName() const { return name; }
 int Monster::getHP() const { return hp; }
 int Monster::getMaxHP() const { return maxHp; }
@@ -76,6 +82,7 @@ float Monster::getScoreReward() const { return score_reward; }
 int Monster::getLevel() const { return level; }
 bool Monster::get_isAlive() const { return isAlive; }
 
+// Set monster HP with bounds checking
 void Monster::setHP(int new_hp) {
     hp = new_hp;
     if (hp < 0) hp = 0;
@@ -83,18 +90,22 @@ void Monster::setHP(int new_hp) {
     isAlive = (hp > 0);
 }
 
+// Set monster attack value with bounds checking
 void Monster::setATK(int new_atk) {
     atk = new_atk;
     if (atk < 0) atk = 0;
 }
 
+// Set monster defense value with bounds checking
 void Monster::setDEF(int new_def) {
     def = new_def;
     if (def < 0) def = 0;
 }
 
+// Set monster alive status
 void Monster::set_isAlive(bool alive) { isAlive = alive; }
 
+// Apply damage to monster and check alive status
 void Monster::takeDamage(int damage) {
     if (!isAlive) return;
     
@@ -107,9 +118,11 @@ void Monster::takeDamage(int damage) {
     if (hp == 0) isAlive = false;
 }
 
+// Monster attacks player and returns actual damage dealt
 int Monster::attackPlayer(Player& player) {
     if (!isAlive) return 0;
     
+    // Calculate random damage within 80% - 120% of base attack
     std::uniform_int_distribution<int> damageDist(
         static_cast<int>(atk * 0.8), 
         static_cast<int>(atk * 1.2)
@@ -125,11 +138,13 @@ int Monster::attackPlayer(Player& player) {
     return actualDamage;
 }
 
+// Mark monster as dead and set HP to 0
 void Monster::die() {
     isAlive = false;
     hp = 0;
 }
 
+// Return formatted monster information string
 std::string Monster::getMonsterInfo() const {
     std::string info = "Monster: " + name + "\n";
     info += "Level: " + std::to_string(level) + "\n";
