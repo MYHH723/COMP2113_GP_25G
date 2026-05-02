@@ -6,6 +6,7 @@
 
 namespace {
 
+// Merchant dialogue lines for shop interaction flavor text
 const char* const kHawk[] = {
     "Fresh ware from caravan and crypt alike!",
     "Prices fair as moonlight - feel the weight of each piece.",
@@ -13,6 +14,7 @@ const char* const kHawk[] = {
     "See here - steel that remembers honour, draught that remembers life.",
 };
 
+// Print random merchant dialogue line
 void mutterMerchantLine() {
     static std::mt19937 g(std::random_device{}());
     std::uniform_int_distribution<size_t> pick(0, sizeof(kHawk) / sizeof(kHawk[0]) - 1);
@@ -21,28 +23,34 @@ void mutterMerchantLine() {
 
 } // namespace
 
+// Constructor: Initialize merchant with game difficulty and seed
 Merchant::Merchant(int gameDiff, int seed) : isAvailable(true), currentDiff(gameDiff) {
     (void)seed;
     initMerchant();
 }
 
+// Default destructor
 Merchant::~Merchant() = default;
 
+// Initialize merchant inventory
 void Merchant::initMerchant() {
     restockGoods(POTION);
     restockGoods(WEAPON);
     restockGoods(ARMOR);
 }
 
+// Check if merchant has specified item type in stock
 bool Merchant::hasItem(ItemType type) const {
     return goods.find(type) != goods.end();
 }
 
+// Get item of specified type from merchant inventory
 Item Merchant::getItem(ItemType type) {
     int id = goods[type];
     return Item(id);
 }
 
+// Display all available goods in merchant shop
 void Merchant::showGoodsList() const {
     mutterMerchantLine();
     std::cout << "\n===== Merchant Shop =====" << std::endl;
@@ -54,6 +62,7 @@ void Merchant::showGoodsList() const {
     std::cout << "=========================" << std::endl;
 }
 
+// Restock specified item type in merchant inventory
 void Merchant::restockGoods(ItemType type) {
     static int nextId = 10000;
     int id = nextId++;
@@ -83,6 +92,11 @@ void Merchant::restockGoods(ItemType type) {
     goods[type] = id;
 }
 
+// Check if merchant is available for interaction
 bool Merchant::getIsAvailable() const { return isAvailable; }
+
+// Set merchant availability state
 void Merchant::setIsAvailable(bool state) { isAvailable = state; }
+
+// Get current game difficulty for merchant
 int Merchant::getCurrentDiff() const { return currentDiff; }
