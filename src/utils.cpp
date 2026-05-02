@@ -5,6 +5,7 @@
  */
 
 #include "utils.h"
+#include <algorithm>
 #include <iostream>
 #include <cstdlib>
 #include <chrono>
@@ -147,4 +148,101 @@ void printWithDelay(const std::string& text, int ms) {
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
     }
     std::cout << std::endl;
+}
+
+void printMonsterEncounterArt(const std::string& monsterName) {
+    if (monsterName == "Skeleton Warrior") {
+        // Pixel skull (13~14 cols) matching reference: #/B = dark, W/. = light (printed as space).
+        static const char* const kSkull[] = {
+            "    #####    ",   // ....#####....  (4+5+4)
+            "   #     #   ",  // ...#WWWWW#...
+            "  #       #  ",  // ..#WWWWWWW#..
+            " ##       ## ",  // .##WWWWWWW##.
+            "  # ## ## #  ",  // .#WBBWBBW#. centered to 13 cols
+            "  # ## ## #  ",
+            " #         # ",  // .#WWWWWWWWW#.
+            "  #    #   #  ",  // ..#WWWBWWW#..
+            "   #     #   ",  // ...#WWWWW#...
+            "   # # # #   ",  // ...#W#W#W#...
+            "   # # # #   ",
+            "    #####    ",
+        };
+        for (const char* line : kSkull) {
+            std::cout << "              " << line << "\n";
+        }
+        std::cout << std::flush;
+        return;
+    }
+    if (monsterName == "Goblin") {
+        std::cout << R"(
+              ,-----.
+             /  o o  \
+            |    ^    |
+             \  ---  /
+           ___|     |___
+          /    \   /    \
+         |      '-'      |
+)" << std::flush;
+    }
+}
+
+void printVictoryArt(int difficulty) {
+    const int di = std::max(0, std::min(2, difficulty));
+    if (di == 0) {
+        std::cout << R"(
+################################################################################
+################################################################################
+##                                                                            ##
+##    ********************************************************************    ##
+##    *                                                                  *    ##
+##    *     C  O  N  G  R  A  T  U  L  A  T  I  O  N  S  !              *    ##
+##    *                                                                  *    ##
+##    *              >>>  E A S Y   M O D E  <<<                         *    ##
+##    *                                                                  *    ##
+##    ********************************************************************    ##
+##                                                                            ##
+################################################################################
+################################################################################
+)" << std::endl;
+        return;
+    }
+    if (di == 1) {
+        std::cout << R"(
+                        *
+                       ~ ~ ~
+                     .-------.
+                    /  o   o  \          NORMAL MODE
+                   |  ~~~~~~~  |        ~~~~~~~~~~~~
+                    \  POP!   /         You did it! Celebrate!
+                 ____'-------'____
+                |  ~~~~~~~~~~~~~   |
+                |___  champagne ____|
+                    \___________/
+                   ~~~ fizz  fizz ~~~
+)" << std::endl;
+        return;
+    }
+    std::cout << R"(
+ __  __   _   _   _____     _      _  __ _____ _   __ __
+ \ \/ /  | | | | / ____|   | |    | |/ /_   _| \ | |  _ \
+  >  <   | |_| || (___    | |    | ' /  | | |  \| | | | |
+ /_/\_\   \___/  \_____|   |____| |_|\_\ |_| |_| \_|____/
+
+              Y O U   A R E   T H E   K I N G   !
+
+                         .
+                        / \
+                       / | \
+                      /  |  \
+                     |   |   |
+                     |  ===  |
+                     |   |   |
+                    /|   |   |\
+                   / |   |   | \
+                  /  |   |   |  \
+                     |   |   |
+                    /=========\
+                   /___________\
+                  [====HARD====]
+)" << std::endl;
 }

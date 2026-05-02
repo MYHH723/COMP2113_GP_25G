@@ -156,6 +156,7 @@ void BattleSystem::startBattle() {
     battleLog.push_back("=== Battle Start ===");
     // So the first getline(choice) does not swallow a stray newline left by cin >> elsewhere.
     discardRestOfLineIfBuffered();
+    printMonsterEncounterArt(currentMonster->getName());
 }
 
 void BattleSystem::endBattle() {

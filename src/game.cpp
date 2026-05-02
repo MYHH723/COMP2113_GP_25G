@@ -369,6 +369,7 @@ void Game::checkGameOver() {
 void Game::showGameResult() {
     clearScreen();
     if (playerWin) {
+        printVictoryArt(difficulty);
         std::cout << "\n================================\n";
         std::cout << "         YOU WIN!\n";
         std::cout << "================================\n";
