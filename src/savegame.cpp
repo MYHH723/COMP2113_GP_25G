@@ -15,6 +15,7 @@
 
 namespace {
 
+// Safely retrieve a boolean value from JSON
 bool jsonBool(const json& j, const char* key, bool fallback) {
     if (!j.contains(key)) return fallback;
     const auto& v = j.at(key);
@@ -23,18 +24,21 @@ bool jsonBool(const json& j, const char* key, bool fallback) {
     return fallback;
 }
 
+// Safely retrieve an integer value from JSON with range clamping
 int jsonIntClamped(const json& j, const char* key, int fallback, int lo, int hi) {
     if (!j.contains(key) || !j.at(key).is_number_integer()) return fallback;
     int x = j.at(key).get<int>();
     return std::max(lo, std::min(hi, x));
 }
 
+// Safely retrieve an integer value from JSON with minimum limit
 int jsonIntMin(const json& j, const char* key, int fallback, int lo) {
     if (!j.contains(key) || !j.at(key).is_number_integer()) return fallback;
     int x = j.at(key).get<int>();
     return std::max(lo, x);
 }
 
+// Safely retrieve a string value from JSON
 std::string jsonString(const json& j, const char* key, const std::string& fallback) {
     if (!j.contains(key) || !j.at(key).is_string()) return fallback;
     return j.at(key).get<std::string>();
@@ -42,6 +46,7 @@ std::string jsonString(const json& j, const char* key, const std::string& fallba
 
 } // namespace
 
+// Save current game state to JSON file
 void Game::saveGame() {
     if (!player) {
         std::cerr << "Error: Could not save (no player).\n";
@@ -66,13 +71,12 @@ void Game::saveGame() {
         saveData["rooms"].push_back(roomData);
     }
 
+    // Create data directory if it does not exist
 #ifdef _WIN32
     if (std::system("if not exist data mkdir data >nul 2>nul") != 0) {
-        /* best-effort; save may still work if data exists */
     }
 #else
     if (std::system("mkdir -p data >/dev/null 2>&1") != 0) {
-        /* best-effort */
     }
 #endif
 
@@ -101,6 +105,7 @@ void Game::saveGame() {
     }
 }
 
+// Load game state from JSON save file
 void Game::loadGame() {
     std::ifstream file("data/save.json");
     if (!file.is_open()) {
@@ -173,6 +178,7 @@ void Game::loadGame() {
     delete player;
     player = loaded;
 
+    // Regenerate map based on saved seed and data
     delete mapGen;
     for (Room* r : rooms) delete r;
     rooms.clear();
@@ -181,6 +187,7 @@ void Game::loadGame() {
     mapGen->generateMap();
     rooms = mapGen->getGeneratedRooms();
 
+    // Restore room states from save data
     if (saveData.contains("rooms") && saveData["rooms"].is_array()) {
         for (const auto& roomData : saveData["rooms"]) {
             if (!roomData.is_object()) continue;
@@ -224,6 +231,7 @@ void Game::loadGame() {
     pause();
 }
 
+// Pause the game and wait for user input
 void Game::pause() {
     ::pause();
 }
