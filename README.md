@@ -9,9 +9,9 @@ A C++ based roguelike dungeon exploration game with difficulty scaling, combat s
 
 - Member1: Li Zhaotian 3033120221 
 - Member2: Zou Jiachen 3036481016
-- Member3: Jin Haoyue 3036529882
+- Member3: Lin Shuhong 3036666513 
 - Member4: Wang Liheng 3036401523
-- Member5: Lin Shuhong 3036666513
+- Member5: Jin Haoyue 3036529882
 
 ## Project Discription
 
