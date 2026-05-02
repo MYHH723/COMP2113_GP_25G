@@ -11,10 +11,12 @@
 #include <cstdlib>
 #include <cerrno>
 
+// Mersenne Twister random number generator for battle calculations
 static std::mt19937 gen(std::random_device{}());
 
 namespace {
 
+// Trim leading and trailing whitespace from input string
 std::string trimOuterWhitespace(const std::string& s) {
     const auto a = s.find_first_not_of(" \t\r\n");
     if (a == std::string::npos) return {};
@@ -22,7 +24,7 @@ std::string trimOuterWhitespace(const std::string& s) {
     return s.substr(a, b - a + 1);
 }
 
-/** One line = one choice; whole token must be integer 1-4 (not e.g. "32767" -> Counter). */
+// Read and validate player battle choice (1-4 only)
 int readBattleChoice14() {
     discardRestOfLineIfBuffered();
     while (true) {
@@ -53,7 +55,7 @@ int readBattleChoice14() {
     }
 }
 
-
+// Flavor text lines for battle actions
 const char* const kLinesAttackAfter[] = {
     "Your steel finds flesh; the beast reels from the blow.",
     "A true strike - honour guides the edge this day.",
@@ -108,6 +110,7 @@ const char* const kLinesFleeFail[] = {
     "No passage yet - the beast will not release you cheaply.",
 };
 
+// Print random flavor text line from given array
 void printRandomLine(const char* const* lines, size_t count) {
     if (count == 0) return;
     std::uniform_int_distribution<size_t> pick(0, count - 1);
@@ -116,6 +119,7 @@ void printRandomLine(const char* const* lines, size_t count) {
 
 } // namespace
 
+// Default constructor: Initialize battle state variables
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
       isBattleActive(false), playerDefending(false),
@@ -124,11 +128,13 @@ BattleSystem::BattleSystem()
     battleLog.push_back("Battle system initialized");
 }
 
+// Destructor: Clear pointers
 BattleSystem::~BattleSystem() {
     player = nullptr;
     currentMonster = nullptr;
 }
 
+// Initialize battle with player and monster references
 void BattleSystem::initBattle(Player* p, Monster* m) {
     player = p;
     currentMonster = m;
@@ -146,6 +152,7 @@ void BattleSystem::initBattle(Player* p, Monster* m) {
     battleLog.push_back(log);
 }
 
+// Start battle UI and encounter display
 void BattleSystem::startBattle() {
     if (!player || !currentMonster) {
         battleLog.push_back("Error: Player or monster missing!");
@@ -154,11 +161,11 @@ void BattleSystem::startBattle() {
     
     isBattleActive = true;
     battleLog.push_back("=== Battle Start ===");
-    // So the first getline(choice) does not swallow a stray newline left by cin >> elsewhere.
     discardRestOfLineIfBuffered();
     printMonsterEncounterArt(currentMonster->getName());
 }
 
+// End battle and log final result
 void BattleSystem::endBattle() {
     isBattleActive = false;
     
@@ -174,6 +181,7 @@ void BattleSystem::endBattle() {
     battleLog.push_back("=== Battle End ===");
 }
 
+// Execute one full battle round (player turn + monster turn)
 BattleResult BattleSystem::executeBattleRound() {
     if (!isBattleActive) {
         battleLog.push_back("Error: No active battle");
@@ -256,6 +264,7 @@ BattleResult BattleSystem::executeBattleRound() {
     return lastResult;
 }
 
+// Player attack action: calculate damage and apply to monster
 int BattleSystem::playerAttack() {
     if (!isBattleActive) {
         battleLog.push_back("Error: Battle not started");
@@ -301,6 +310,7 @@ int BattleSystem::playerAttack() {
     return actualDamage;
 }
 
+// Monster attack action: calculate damage and apply to player
 int BattleSystem::monsterAttack(float extraDamageMultiplier) {
     if (!isBattleActive) {
         battleLog.push_back("Error: Battle not started");
@@ -346,6 +356,7 @@ int BattleSystem::monsterAttack(float extraDamageMultiplier) {
     return damage;
 }
 
+// Player flee action: 70% success chance
 bool BattleSystem::playerFlee() {
     if (!isBattleActive) {
         battleLog.push_back("Error: Battle not started");
@@ -366,6 +377,7 @@ bool BattleSystem::playerFlee() {
     }
 }
 
+// Player defend action: boost defense for one turn
 bool BattleSystem::playerDefend() {
     if (!isBattleActive) {
         battleLog.push_back("Error: Battle not started");
@@ -377,10 +389,10 @@ bool BattleSystem::playerDefend() {
     return true;
 }
 
+// Player counter attack: chance to reflect damage + bonus gold
 bool BattleSystem::playerCounter() {
     if (!isBattleActive || !player || !currentMonster) return false;
 
-    // Counter chance scales with ATK and enemy difficulty proxy.
     float atkFactor = player->get_ATK() / 250.0f;
     float difficultyPenalty = 0.10f;
     int enemyLevel = currentMonster->getLevel();
@@ -405,15 +417,24 @@ bool BattleSystem::playerCounter() {
     return false;
 }
 
+// Get final battle result
 BattleResult BattleSystem::getLastResult() const { return lastResult; }
+
+// Get current battle round number
 int BattleSystem::getRoundCount() const { return round_count; }
+
+// Check if battle is currently active
 bool BattleSystem::get_isBattleActive() const { return isBattleActive; }
+
+// Get full battle log
 std::vector<std::string> BattleSystem::getBattleLog() const { return battleLog; }
 
+// Get battle rewards (EXP, Gold, Score)
 const float* BattleSystem::getRewards() const {
     return reward;
 }
 
+// Format and return full battle log as string
 std::string BattleSystem::showBattleLog() {
     std::stringstream ss;
     ss << "=== Battle Log ===" << std::endl;
@@ -429,6 +450,7 @@ std::string BattleSystem::showBattleLog() {
     return ss.str();
 }
 
+// Apply all battle rewards to player
 void BattleSystem::applyRewards() {
     if (player) {
         player->change_EXP(reward[0]);
