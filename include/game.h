@@ -37,6 +37,12 @@ private:
     void applyDifficultyScaling(); // Sets global modifiers for monsters/traps
 
 public:
+    enum class LoadResult {
+        Loaded,            // Success; caller should run game loop
+        Failed,            // Missing/corrupt save (details may already be printed)
+        AlreadyCompleted   // Valid save but game finished; prompt already shown in loadGame
+    };
+
     Game();                  // Constructor
     ~Game();                 // Destructor (cleans up dynamic memory)
 
@@ -45,7 +51,7 @@ public:
     void selectDifficulty(); // Lets player choose difficulty
     void initGame();         // Starts a new game with chosen difficulty
     void saveGame();         // Saves current progress to data/save.json
-    void loadGame();         // Loads saved game from data/save.json
+    LoadResult loadGame();   // Loads saved game from data/save.json
     void pause();
 
     // Main game loop
