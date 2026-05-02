@@ -4,19 +4,29 @@
 #include <string>
 #include <vector>
 
-// GameTester class - tests shop functions and generates test reports
+// GameTester class - Provides game testing functionality and test report generation
 class GameTester {
 private:
+    // List to store all detected bug descriptions
     std::vector<std::string> bugs;
+
+    // Final generated test report content
     std::string testReport;
 
 public:
+    // Default constructor
     GameTester();
+
+    // Destructor
     ~GameTester();
 
-    // Testing
+    // Execute all available game test cases
     void runAllTests();
+
+    // Add a new bug record to the bug list
     void recordBug(const std::string& desc);
+
+    // Generate and output the complete test report
     void generateTestReport();
 };
 
