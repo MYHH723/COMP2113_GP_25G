@@ -10,7 +10,8 @@
 #include <string>
 
 void clearScreen();                       // clear terminal (Linux)
-void pause();                             // wait for user input
+/** Wait for Enter (not named `pause` — conflicts with POSIX pause() in unistd.h on macOS). */
+void waitForEnter();
 /** Discard the rest of the current input line after a formatted `cin >>` (avoids junk like `1abc`). */
 void discardRestOfLine();
 /** If stdin already has buffered characters, discard until newline (safe before `getline`). */
