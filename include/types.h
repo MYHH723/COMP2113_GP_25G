@@ -4,13 +4,19 @@
 
 #include <string>
 
+// Enumeration for room types in the game map
 enum RoomType { NORMAL, BOSS, SHOP, TREASURE };
+
+// Enumeration for item categories
 enum ItemType { POTION, WEAPON, ARMOR };
+
+// Enumeration for item quality levels
 enum ItemRarity { LOW, MEDIUM, HIGH };
-// types.h（修改后）
+
+// Enumeration for game difficulty settings
 enum Difficulty { DIFF_EASY, DIFF_NORMAL, DIFF_HARD };
 
-// 声明字符串数组（定义在 types.cpp 中）
+// External string arrays for item names (defined in types.cpp)
 extern const std::string lowPotion[7];
 extern const std::string mediumPotion[7];
 extern const std::string highPotion[10];
