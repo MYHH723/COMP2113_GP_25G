@@ -112,7 +112,7 @@ void Game::loadGame() {
 }
 
 void Game::pause() {
-    std::cout << "Press any key to continue...";
+    std::cout << "Press Enter to continue...";
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin.get();
 }

@@ -212,6 +212,8 @@ void Game::enterNextRoom() {
         return;
     }
 
+
+
     Room* currentRoom = rooms[currentRoomIndex];
     currentRoomIndex++;
 
@@ -285,6 +287,7 @@ void Game::enterNextRoom() {
 
             playerWin = false;
             // 显示最后一次战斗的日志（或者显示胜利信息）
+            std::cout << std::fixed << std::setprecision(2);
             std::cout << "Room cleared! Gained " << totalExp << " EXP, " 
                       << totalGold << " Gold, " << totalScore << " Score.\n";
             std::cout << battle.showBattleLog() << std::endl;

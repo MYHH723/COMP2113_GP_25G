@@ -153,8 +153,10 @@ int BattleSystem::playerAttack() {
         reward[1] += reward_gold;
         reward[2] += reward_score;
         
-        battleLog.push_back("Gained " + std::to_string(reward_exp) + " EXP and " + 
-                std::to_string(reward_gold) + " Gold");
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2);
+        ss << "Gained " << reward_exp << " EXP and " << reward_gold << " Gold";
+        battleLog.push_back(ss.str());
     }
     battleLog.push_back("Monster remaining HP: " + std::to_string(currentMonster->getHP()));
     return actualDamage;
@@ -256,7 +258,9 @@ bool BattleSystem::playerCounter() {
         playerAttack();
         int bonusGold = std::max(1, static_cast<int>(currentMonster->getGoldReward() * 0.05f));
         reward[1] += static_cast<float>(bonusGold);
-        battleLog.push_back("Counter bonus: +" + std::to_string(bonusGold) + " gold.");
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2) << static_cast<float>(bonusGold);
+        battleLog.push_back("Counter bonus: +" + ss.str() + " gold.");
         return true;
     }
 
