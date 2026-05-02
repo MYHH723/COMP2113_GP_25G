@@ -111,7 +111,7 @@ void clearScreen() {
 }
 
 void waitForEnter() {
-    std::cout << "\nPress Enter to continue..." << std::flush;
+    std::cout << "\nPress Enter to continue...\n" << std::flush;
     std::cin.clear();
     discardRestOfLineIfBuffered();
     waitEnterSilently();
