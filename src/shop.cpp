@@ -10,17 +10,20 @@
 
 namespace {
 
+// Get static random number generator for merchant dialogue
 std::mt19937& merchantRng() {
     static std::mt19937 g(std::random_device{}());
     return g;
 }
 
+// Print random merchant dialogue line
 void sayMerchant(const char* const* lines, size_t count) {
     if (count == 0) return;
     std::uniform_int_distribution<size_t> pick(0, count - 1);
     std::cout << "  Merchant: \"" << lines[pick(merchantRng())] << "\"\n";
 }
 
+// Merchant dialogue lines
 const char* const kWelcome[] = {
     "Ah, traveller - your coin sings sweeter than chapel bells in this dreary hall.",
     "Step closer, wanderer. Steel, salve, and honest steel await the bold.",
@@ -85,6 +88,7 @@ const char* const kNoMatchItem[] = {
 
 } // namespace
 
+// Default constructor
 Shop::Shop() {
     isShopOpen = false;
     sellDiscount = 0.5f;
@@ -93,12 +97,14 @@ Shop::Shop() {
     inventory = nullptr;
 }
 
+// Destructor
 Shop::~Shop() {
     merchant = nullptr;
     player = nullptr;
     inventory = nullptr;
 }
 
+// Initialize shop with merchant and player references
 void Shop::initShop(Merchant* m, Player* p) {
     merchant = m;
     player = p;
@@ -106,10 +112,12 @@ void Shop::initShop(Merchant* m, Player* p) {
     isShopOpen = true;
 }
 
+// Calculate sell price for item (50% of original price)
 int Shop::calculateSellPrice(const Item& item) {
     return static_cast<int>(item.getPrice() * sellDiscount);
 }
 
+// Buy item from merchant
 bool Shop::buyItem(ItemType type, int grade) {
     (void)grade;
     if (!isShopOpen) {
@@ -146,7 +154,7 @@ bool Shop::buyItem(ItemType type, int grade) {
     player->change_Money(-finalPrice);
     inventory->add_item(item.getId());
 
-    // Immediate effects for merchant-room purchases.
+    // Apply immediate effects for purchased items
     if (type == WEAPON) {
         player->change_ATK(10.0f);
         std::cout << "[Shop] Sword bonus applied: +10 ATK." << std::endl;
@@ -154,11 +162,12 @@ bool Shop::buyItem(ItemType type, int grade) {
         player->change_DEF(10.0f);
         std::cout << "[Shop] Armor bonus applied: +10 DEF." << std::endl;
     } else if (type == POTION) {
-        int heal = 10 + (std::rand() % 14); // 10-23
+        int heal = 10 + (std::rand() % 14);
         player->change_HP(static_cast<float>(heal));
         std::cout << "[Shop] Potion used immediately: +" << heal << " HP." << std::endl;
     }
 
+    // Play corresponding dialogue
     if (type == WEAPON) {
         sayMerchant(kBuyWeapon, sizeof(kBuyWeapon) / sizeof(kBuyWeapon[0]));
     } else if (type == ARMOR) {
@@ -171,6 +180,7 @@ bool Shop::buyItem(ItemType type, int grade) {
     return true;
 }
 
+// Sell item to merchant
 bool Shop::sellItem(ItemType type, int grade) {
     if (!isShopOpen) {
         std::cout << "[Shop] Shop is closed." << std::endl;
@@ -202,6 +212,7 @@ bool Shop::sellItem(ItemType type, int grade) {
     return true;
 }
 
+// Show main shop UI and handle user input
 void Shop::showShopUI() {
     if (!merchant || !player || !inventory) return;
 
@@ -247,14 +258,17 @@ void Shop::showShopUI() {
     }
 }
 
+// Close the shop
 void Shop::closeShop() {
     isShopOpen = false;
 }
 
+// Check if shop is open
 bool Shop::get_isShopOpen() const {
     return isShopOpen;
 }
 
+// Get current sell discount rate
 float Shop::get_sellDiscount() const {
     return sellDiscount;
 }
