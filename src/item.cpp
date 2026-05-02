@@ -6,32 +6,39 @@
 #include <iomanip>
 #include <random>
 
+// Global database storing all item definitions by ID
 std::unordered_map<int, ItemData> itemDatabase;
+
+// Random number generator for item generation
 static std::mt19937 gen(std::random_device{}());
 std::uniform_int_distribution<> int_dist(0, 30);
 
+// Initialize item database (placeholder for future expansion)
 void initItemDatabase() {}
 
+// Default constructor
 Item::Item() : id(0) {}
 
+// Constructor with item ID - generates item properties if not in database
 Item::Item(int id) : id(id) {
     if (itemDatabase.find(id) != itemDatabase.end()) {
         return;
     }
     
+    // Use item ID as seed for consistent random generation
     std::mt19937 rng(id); 
     std::uniform_int_distribution<int> typeDist(0, 2);
     std::uniform_int_distribution<int> rarityDist(0, 2);
 
-    
+    // Randomly determine item type and rarity
     ItemType type = static_cast<ItemType>(typeDist(rng));
-    
     int rarity = static_cast<int>(rarityDist(rng));
     
     int price = 0;
     float effectValue = 0.0f;
-    
     std::string name;
+
+    // Generate stats based on item type and rarity
     switch (type) {
         case POTION:
             if(ItemRarity(rarity) == LOW) {
@@ -89,42 +96,50 @@ Item::Item(int id) : id(id) {
             break;
     }
     
+    // Store generated item data in database
     itemDatabase[id] = {name, type, ItemRarity(rarity), effectValue, price, false};
 }
 
-
+// Get item ID
 int Item::getId() const { return id; }
 
+// Get item name from database
 std::string Item::getName() const {
     auto it = itemDatabase.find(id);
     return it != itemDatabase.end() ? it->second.name : "";
 }
 
+// Get item type from database
 ItemType Item::getType() const {
     auto it = itemDatabase.find(id);
     return it != itemDatabase.end() ? it->second.type : POTION;
 }
 
+// Get item rarity from database
 ItemRarity Item::getRarity() const {
     auto it = itemDatabase.find(id);
     return it != itemDatabase.end() ? it->second.rarity : LOW;
 }
 
+// Get item effect value from database
 float Item::getEffectValue() const {
     auto it = itemDatabase.find(id);
     return it != itemDatabase.end() ? it->second.effectValue : 0.0f;
 }
 
+// Get item price from database
 int Item::getPrice() const {
     auto it = itemDatabase.find(id);
     return it != itemDatabase.end() ? it->second.price : 0;
 }
 
+// Check if item is consumed after use
 bool Item::getIsConsumed() const {
     auto it = itemDatabase.find(id);
     return it != itemDatabase.end() ? it->second.isConsumed : false;
 }
 
+// Set item consumed state
 void Item::setIsConsumed(bool state) {
     auto it = itemDatabase.find(id);
     if (it != itemDatabase.end()) {
@@ -132,6 +147,7 @@ void Item::setIsConsumed(bool state) {
     }
 }
 
+// Display complete item information to console
 void Item::displayItemInfo() const {
     auto it = itemDatabase.find(id);
     if (it == itemDatabase.end()) {
@@ -170,6 +186,7 @@ void Item::displayItemInfo() const {
     std::cout << std::endl;
 }
 
+// Apply item effect to player
 void Item::applyEffect(Player& player) {
     auto it = itemDatabase.find(id);
     if (it == itemDatabase.end()) return;
@@ -189,6 +206,7 @@ void Item::applyEffect(Player& player) {
     setIsConsumed(true);
 }
 
+// Overload equality operator to compare item IDs
 bool Item::operator==(const Item& other) const {
     return id == other.id;
 }
