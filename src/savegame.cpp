@@ -101,12 +101,12 @@ void Game::saveGame() {
     }
 }
 
-void Game::loadGame() {
+Game::LoadResult Game::loadGame() {
     std::ifstream file("data/save.json");
     if (!file.is_open()) {
         std::cout << "No save file found.\n";
         isRunning = false;
-        return;
+        return LoadResult::Failed;
     }
 
     json saveData;
@@ -116,14 +116,14 @@ void Game::loadGame() {
         std::cout << "Save file is corrupted or invalid JSON.\n";
         file.close();
         isRunning = false;
-        return;
+        return LoadResult::Failed;
     }
     file.close();
 
     if (!saveData.is_object()) {
         std::cout << "Save file is corrupted (invalid root).\n";
         isRunning = false;
-        return;
+        return LoadResult::Failed;
     }
 
     try {
@@ -142,14 +142,14 @@ void Game::loadGame() {
     } catch (const std::exception&) {
         std::cout << "Save file is corrupted (bad header fields).\n";
         isRunning = false;
-        return;
+        return LoadResult::Failed;
     }
 
     if (playerWin || currentRoomIndex >= totalRooms) {
         isRunning = false;
         std::cout << "This save is already completed.\n";
         pause();
-        return;
+        return LoadResult::AlreadyCompleted;
     }
 
     applyDifficultyScaling();
@@ -157,7 +157,7 @@ void Game::loadGame() {
     if (!saveData.contains("player") || !saveData["player"].is_object()) {
         std::cout << "Save file is missing player data.\n";
         isRunning = false;
-        return;
+        return LoadResult::Failed;
     }
 
     Player* loaded = nullptr;
@@ -168,7 +168,7 @@ void Game::loadGame() {
         delete loaded;
         std::cout << "Save player data is corrupted.\n";
         isRunning = false;
-        return;
+        return LoadResult::Failed;
     }
     delete player;
     player = loaded;
@@ -222,6 +222,7 @@ void Game::loadGame() {
     pendingNewGameWelcome = false;
     std::cout << "Game loaded. Welcome back, " << playerName << "!\n";
     pause();
+    return LoadResult::Loaded;
 }
 
 void Game::pause() {
