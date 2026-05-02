@@ -3,6 +3,7 @@
 #include "consoleUI.h"
 #include "utils.h"
 
+// Display the main menu interface of the game
 void ConsoleUI::showMainMenu()
 {
     std::cout << "=============================\n";
@@ -17,6 +18,7 @@ void ConsoleUI::showMainMenu()
     std::cin.get();
 }
 
+// Display all core status attributes of the player
 void ConsoleUI::showPlayerStatus(const Player &player)
 {
     std::cout << "\n=== Player Status ===\n";
@@ -29,6 +31,7 @@ void ConsoleUI::showPlayerStatus(const Player &player)
     std::cout << "Score: " << formatFixed2(player.get_score()) << "\n";
 }
 
+// Display all items stored in the player's inventory
 void ConsoleUI::showInventory(const Player &player)
 {
     std::cout << "\n=== Inventory ===\n";
