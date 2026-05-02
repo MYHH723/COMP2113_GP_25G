@@ -1,11 +1,88 @@
 #include "shop.h"
 #include "merchant.h"
 #include "player.h"
-#include "gamelogger.h"
 #include "item.h"
 #include <iostream>
 #include <algorithm>
 #include <limits>
+#include <random>
+
+namespace {
+
+std::mt19937& merchantRng() {
+    static std::mt19937 g(std::random_device{}());
+    return g;
+}
+
+void sayMerchant(const char* const* lines, size_t count) {
+    if (count == 0) return;
+    std::uniform_int_distribution<size_t> pick(0, count - 1);
+    std::cout << "  Merchant: \"" << lines[pick(merchantRng())] << "\"\n";
+}
+
+const char* const kWelcome[] = {
+    "Ah, traveller - your coin sings sweeter than chapel bells in this dreary hall.",
+    "Step closer, wanderer. Steel, salve, and honest steel await the bold.",
+    "Gold opens every lock - even those the dungeon keeps.",
+    "Welcome to my stall; what you lack, I may yet sell.",
+    "The road is cruel; let gear be kinder than fate.",
+};
+
+const char* const kFarewell[] = {
+    "Fair fortune on the road, stranger - may your purse stay heavy.",
+    "Till coin calls again: keep blade sharp and faith sharper.",
+    "Go with steel bright and heart undimmed.",
+    "The door stays open when gold remembers the way back.",
+    "May your next hall hold treasure, not tomb.",
+};
+
+const char* const kBuyWeapon[] = {
+    "A worthy blade - may it carve your legend in the dark.",
+    "Iron honest and true; swear it only to honour.",
+    "This steel has thirst - let it drink deep of shadow.",
+};
+
+const char* const kBuyArmor[] = {
+    "Plate and mail - let them bear what flesh cannot.",
+    "Good mail turns death aside; wear it like a vow.",
+    "The forge remembers oaths; this harness keeps them.",
+};
+
+const char* const kBuyPotion[] = {
+    "Drink deep - the brew remembers old remedies and older prayers.",
+    "A draught for the weary; let crimson stay within your veins.",
+    "The apothecary's art: bitter sip, sweeter dawn.",
+};
+
+const char* const kTooPoor[] = {
+    "Nay - the purse speaks louder than courage today.",
+    "Thin coin, thin mercy - return when gold outweighs pride.",
+    "Alas, my friend, dreams weigh less than scales.",
+};
+
+const char* const kInventoryFull[] = {
+    "Your pack groans full; lighten it ere you buy more.",
+    "Even merchants marvel - where do you hide so much?",
+    "No space for breath, let alone brass - make room first.",
+};
+
+const char* const kNoStock[] = {
+    "That shelf stands bare - another soul claimed it first.",
+    "Would that I had it to sell; come again anon.",
+};
+
+const char* const kSellToMerchant[] = {
+    "Fair trade - your cast-offs become another's fortune.",
+    "Gold changes hands; honour keeps its tally.",
+    "I'll find a buyer; may this coin warm your road.",
+};
+
+const char* const kNoMatchItem[] = {
+    "I see no such ware upon your person - bring what matches.",
+    "That bauble you lack; search your pack again.",
+};
+
+} // namespace
 
 Shop::Shop() {
     isShopOpen = false;
@@ -13,7 +90,6 @@ Shop::Shop() {
     merchant = nullptr;
     player = nullptr;
     inventory = nullptr;
-    purchaseCount = 0;
 }
 
 Shop::~Shop() {
@@ -27,7 +103,6 @@ void Shop::initShop(Merchant* m, Player* p) {
     player = p;
     inventory = p->get_inventory();
     isShopOpen = true;
-    purchaseCount = 0;
 }
 
 int Shop::calculateSellPrice(const Item& item) {
@@ -35,18 +110,13 @@ int Shop::calculateSellPrice(const Item& item) {
 }
 
 bool Shop::buyItem(ItemType type, int grade) {
+    (void)grade;
     if (!isShopOpen) {
         std::cout << "[Shop] Shop is closed." << std::endl;
         return false;
     }
-
-    if (purchaseCount >= 5) {
-    std::cout << "[Shop] You have bought enough items, shop closes now." << std::endl;
-    closeShop();
-    return false;
-    }
-
     if (!merchant->hasItem(type)) {
+        sayMerchant(kNoStock, sizeof(kNoStock) / sizeof(kNoStock[0]));
         std::cout << "[Shop] Item not available." << std::endl;
         return false;
     }
@@ -61,19 +131,19 @@ bool Shop::buyItem(ItemType type, int grade) {
     int finalPrice = static_cast<int>(item.getPrice() * multiplier);
 
     if (player->get_Money() < finalPrice) {
+        sayMerchant(kTooPoor, sizeof(kTooPoor) / sizeof(kTooPoor[0]));
         std::cout << "[Shop] Not enough gold." << std::endl;
         return false;
     }
 
     if (inventory->get_current_size() >= inventory->get_capacity()) {
+        sayMerchant(kInventoryFull, sizeof(kInventoryFull) / sizeof(kInventoryFull[0]));
         std::cout << "[Shop] Inventory full." << std::endl;
         return false;
     }
 
     player->change_Money(-finalPrice);
     inventory->add_item(item.getId());
-
-    purchaseCount++;
 
     // Immediate effects for merchant-room purchases.
     if (type == WEAPON) {
@@ -83,24 +153,20 @@ bool Shop::buyItem(ItemType type, int grade) {
         player->change_DEF(10.0f);
         std::cout << "[Shop] Armor bonus applied: +10 DEF." << std::endl;
     } else if (type == POTION) {
-        int heal = 10 + (std::rand() % 14);
+        int heal = 10 + (std::rand() % 14); // 10-23
         player->change_HP(static_cast<float>(heal));
         std::cout << "[Shop] Potion used immediately: +" << heal << " HP." << std::endl;
     }
 
-    GameLogger logger;
-    logger.initLogFile();
-    logger.logTransaction("BUY", type, grade, finalPrice);
-    logger.closeLogFile();
+    if (type == WEAPON) {
+        sayMerchant(kBuyWeapon, sizeof(kBuyWeapon) / sizeof(kBuyWeapon[0]));
+    } else if (type == ARMOR) {
+        sayMerchant(kBuyArmor, sizeof(kBuyArmor) / sizeof(kBuyArmor[0]));
+    } else if (type == POTION) {
+        sayMerchant(kBuyPotion, sizeof(kBuyPotion) / sizeof(kBuyPotion[0]));
+    }
 
     std::cout << "[Shop] Bought: " << item.getName() << " for " << finalPrice << " gold." << std::endl;
-
-    std::cout << "\n[Shop] Current Inventory: " 
-              << inventory->get_current_size() 
-              << " / " 
-              << inventory->get_capacity() 
-              << std::endl;
-
     return true;
 }
 
@@ -120,6 +186,7 @@ bool Shop::sellItem(ItemType type, int grade) {
     }
 
     if (targetId < 0) {
+        sayMerchant(kNoMatchItem, sizeof(kNoMatchItem) / sizeof(kNoMatchItem[0]));
         std::cout << "[Shop] You don't have a matching item." << std::endl;
         return false;
     }
@@ -129,11 +196,7 @@ bool Shop::sellItem(ItemType type, int grade) {
     inventory->remove_item(targetId);
     player->change_Money(sellPrice);
 
-    GameLogger logger;
-    logger.initLogFile();
-    logger.logTransaction("SELL", type, grade, sellPrice);
-    logger.closeLogFile();
-
+    sayMerchant(kSellToMerchant, sizeof(kSellToMerchant) / sizeof(kSellToMerchant[0]));
     std::cout << "[Shop] Sold: " << item.getName() << " for " << sellPrice << " gold." << std::endl;
     return true;
 }
@@ -141,8 +204,10 @@ bool Shop::sellItem(ItemType type, int grade) {
 void Shop::showShopUI() {
     if (!merchant || !player || !inventory) return;
 
+    sayMerchant(kWelcome, sizeof(kWelcome) / sizeof(kWelcome[0]));
+
     int choice = -1;
-    while (isShopOpen) {
+    while (true) {
         merchant->showGoodsList();
         std::cout << "\n[Shop] Choose an option:\n";
         std::cout << "1. Upgrade Sword (+10 ATK)\n";
@@ -158,7 +223,10 @@ void Shop::showShopUI() {
             continue;
         }
 
-        if (choice == 0) break;
+        if (choice == 0) {
+            sayMerchant(kFarewell, sizeof(kFarewell) / sizeof(kFarewell[0]));
+            break;
+        }
         if (choice == 1) buyItem(WEAPON, static_cast<int>(MEDIUM));
         else if (choice == 2) buyItem(POTION, static_cast<int>(MEDIUM));
         else if (choice == 3) buyItem(ARMOR, static_cast<int>(MEDIUM));
@@ -168,7 +236,6 @@ void Shop::showShopUI() {
 
 void Shop::closeShop() {
     isShopOpen = false;
-    purchaseCount = 0;
 }
 
 bool Shop::get_isShopOpen() const {

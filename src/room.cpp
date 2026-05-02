@@ -60,8 +60,8 @@ void Room::generateRoomContent(int diff)
             monsterCount = 1 + rand() % 3;
             trapCount = 1 + rand() % 3;
             break;
-        case 2: // Hard: 2-4 monsters, 2-4 traps
-            monsterCount = 2 + rand() % 3;
+        case 2: // Hard: 1-3 monsters (still harder via monster stats), 2-4 traps
+            monsterCount = 1 + rand() % 3;
             trapCount = 2 + rand() % 3;
             break;
         }

@@ -2,6 +2,24 @@
 #include "item.h"
 #include "types.h"
 #include <iostream>
+#include <random>
+
+namespace {
+
+const char* const kHawk[] = {
+    "Fresh ware from caravan and crypt alike!",
+    "Prices fair as moonlight - feel the weight of each piece.",
+    "Names mean little; coin names everything.",
+    "See here - steel that remembers honour, draught that remembers life.",
+};
+
+void mutterMerchantLine() {
+    static std::mt19937 g(std::random_device{}());
+    std::uniform_int_distribution<size_t> pick(0, sizeof(kHawk) / sizeof(kHawk[0]) - 1);
+    std::cout << "  Merchant: \"" << kHawk[pick(g)] << "\"\n";
+}
+
+} // namespace
 
 Merchant::Merchant(int gameDiff, int seed) : isAvailable(true), currentDiff(gameDiff) {
     (void)seed;
@@ -26,6 +44,7 @@ Item Merchant::getItem(ItemType type) {
 }
 
 void Merchant::showGoodsList() const {
+    mutterMerchantLine();
     std::cout << "\n===== Merchant Shop =====" << std::endl;
     for (const auto& pair : goods) {
         Item temp(pair.second);

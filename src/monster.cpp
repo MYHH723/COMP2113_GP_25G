@@ -18,11 +18,13 @@ Monster::~Monster() {
 void Monster::initMonster(int difficulty, int monsterLevel) {
     level = monsterLevel;
     
+    // Game passes difficulty 0=Easy, 1=Normal, 2=Hard (see Game::selectDifficulty).
     float difficultyMultiplier = 1.0f;
-    switch(difficulty) {
-        case 1: difficultyMultiplier = 0.8f; break;
-        case 2: difficultyMultiplier = 1.0f; break;
-        case 3: difficultyMultiplier = 1.5f; break;
+    switch (difficulty) {
+        case 0: difficultyMultiplier = 0.8f; break;
+        case 1: difficultyMultiplier = 1.0f; break;
+        case 2: difficultyMultiplier = 1.15f; break; // Hard: stronger monsters, not extra mob count
+        default: difficultyMultiplier = 1.0f; break;
     }
     
     if (level <= 2) {

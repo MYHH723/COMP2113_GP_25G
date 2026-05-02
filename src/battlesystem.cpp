@@ -6,8 +6,73 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <limits>
 
 static std::mt19937 gen(std::random_device{}());
+
+namespace {
+
+const char* const kLinesAttackAfter[] = {
+    "Your steel finds flesh; the beast reels from the blow.",
+    "A true strike - honour guides the edge this day.",
+    "The blade sings; crimson pays the toll of battle.",
+    "You drive forward; iron answers your command.",
+    "Through grit and dust, your weapon bites deep.",
+    "The foe buckles - another verse in the song of war.",
+    "Steel meets hide; the dungeon echoes your resolve.",
+    "With measured wrath you carve your answer.",
+};
+
+const char* const kLinesDefendAfter[] = {
+    "You brace behind shield and faith; the blow rings hollow.",
+    "Stone-hearted guard - the enemy finds no easy quarry.",
+    "Your stance holds like a castle wall in storm.",
+    "Blow turned aside; prayer and plate share the burden.",
+    "The strike expends itself upon your ready guard.",
+    "You yield ground to none; the shield remembers every oath.",
+    "A knight's patience outlasts the hammer of fate.",
+    "Guard high, spirit higher - the tide breaks on you.",
+};
+
+const char* const kLinesCounterSuccess[] = {
+    "Riposte! Fortune favours the bold.",
+    "You turn death aside and answer with your own steel.",
+    "The beast overreaches - you punish its arrogance.",
+    "Quick as chapel bells at Matins, your counter lands.",
+    "A duelist's breath - strike where they least expect.",
+    "They lunge; you dance; steel finishes the verse.",
+};
+
+const char* const kLinesCounterFail[] = {
+    "Your riposte falters; the opening costs dear.",
+    "Too slow - the foe reads your intent and strikes true.",
+    "The counter fails; courage alone cannot turn every blade.",
+    "Balance lost - a costly lesson in the lists.",
+    "Your timing slips; the dungeon claims its due.",
+};
+
+const char* const kLinesFleeSuccess[] = {
+    "You slip into shadow - live to fight another dawn.",
+    "Discretion, not cowardice - the wise warrior withdraws.",
+    "Boots on stone; behind you, only echoes and breath.",
+    "The corridor swallows you; survival is its own victory.",
+    "You quit the field with heart still beating - there will be other songs.",
+};
+
+const char* const kLinesFleeFail[] = {
+    "Escape denied - the enemy closes like a gate of iron.",
+    "Your heel catches; fate insists on one more exchange.",
+    "The way is barred; steel demands another reckoning.",
+    "No passage yet - the beast will not release you cheaply.",
+};
+
+void printRandomLine(const char* const* lines, size_t count) {
+    if (count == 0) return;
+    std::uniform_int_distribution<size_t> pick(0, count - 1);
+    std::cout << "  * " << lines[pick(gen)] << "\n";
+}
+
+} // namespace
 
 BattleSystem::BattleSystem() 
     : player(nullptr), currentMonster(nullptr), round_count(0), 
@@ -92,24 +157,56 @@ BattleResult BattleSystem::executeBattleRound() {
     
     round_count++;
     battleLog.push_back("--- Round " + std::to_string(round_count) + " ---");
-    
-    std::uniform_int_distribution<int> actionDist(1, 100);
-    int actionRoll = actionDist(gen);
 
-    // Every round has tactical chances: defend / counter / normal attack.
-    if (actionRoll <= 35) {
+    std::cout << "\n--- Your turn (Round " << round_count << ") ---\n";
+    std::cout << "You: HP " << static_cast<int>(player->get_HP())
+              << "  |  " << currentMonster->getName()
+              << " HP: " << currentMonster->getHP() << "\n";
+    std::cout << "1. Attack   2. Defend   3. Counter   4. Flee\n";
+    std::cout << "Choice (1-4): " << std::flush;
+
+    int choice = 0;
+    while (true) {
+        if (std::cin >> choice) {
+            if (choice >= 1 && choice <= 4) break;
+            std::cout << "Invalid. Enter 1-4: " << std::flush;
+        } else {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Enter 1-4: " << std::flush;
+        }
+    }
+
+    if (choice == 1) {
+        playerAttack();
+        if (currentMonster && currentMonster->get_isAlive() && isBattleActive) {
+            monsterAttack();
+        }
+        printRandomLine(kLinesAttackAfter,
+                        sizeof(kLinesAttackAfter) / sizeof(kLinesAttackAfter[0]));
+    } else if (choice == 2) {
         playerDefend();
         monsterAttack();
-    } else if (actionRoll <= 70) {
+        printRandomLine(kLinesDefendAfter,
+                        sizeof(kLinesDefendAfter) / sizeof(kLinesDefendAfter[0]));
+    } else if (choice == 3) {
         bool counterSuccess = playerCounter();
-        if (!counterSuccess && currentMonster && currentMonster->get_isAlive()) {
-            // Failed counter: take 10% extra damage.
+        if (!counterSuccess && currentMonster && currentMonster->get_isAlive() && isBattleActive) {
             monsterAttack(1.10f);
         }
-    } else {
-        playerAttack();
-        if (currentMonster && currentMonster->get_isAlive()) {
-            monsterAttack();
+        printRandomLine(counterSuccess ? kLinesCounterSuccess : kLinesCounterFail,
+                        counterSuccess ? sizeof(kLinesCounterSuccess) / sizeof(kLinesCounterSuccess[0])
+                                     : sizeof(kLinesCounterFail) / sizeof(kLinesCounterFail[0]));
+    } else if (choice == 4) {
+        if (playerFlee()) {
+            printRandomLine(kLinesFleeSuccess,
+                            sizeof(kLinesFleeSuccess) / sizeof(kLinesFleeSuccess[0]));
+        } else {
+            if (currentMonster && currentMonster->get_isAlive() && isBattleActive) {
+                monsterAttack();
+            }
+            printRandomLine(kLinesFleeFail,
+                            sizeof(kLinesFleeFail) / sizeof(kLinesFleeFail[0]));
         }
     }
     return lastResult;
@@ -153,10 +250,8 @@ int BattleSystem::playerAttack() {
         reward[1] += reward_gold;
         reward[2] += reward_score;
         
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(2);
-        ss << "Gained " << reward_exp << " EXP and " << reward_gold << " Gold";
-        battleLog.push_back(ss.str());
+        battleLog.push_back("Gained " + std::to_string(reward_exp) + " EXP and " + 
+                std::to_string(reward_gold) + " Gold");
     }
     battleLog.push_back("Monster remaining HP: " + std::to_string(currentMonster->getHP()));
     return actualDamage;
@@ -258,9 +353,7 @@ bool BattleSystem::playerCounter() {
         playerAttack();
         int bonusGold = std::max(1, static_cast<int>(currentMonster->getGoldReward() * 0.05f));
         reward[1] += static_cast<float>(bonusGold);
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(2) << static_cast<float>(bonusGold);
-        battleLog.push_back("Counter bonus: +" + ss.str() + " gold.");
+        battleLog.push_back("Counter bonus: +" + std::to_string(bonusGold) + " gold.");
         return true;
     }
 
