@@ -11,6 +11,12 @@
 
 void clearScreen();                       // clear terminal (Linux)
 void pause();                             // wait for user input
+/** Discard the rest of the current input line after a formatted `cin >>` (avoids junk like `1abc`). */
+void discardRestOfLine();
+/** If stdin already has buffered characters, discard until newline (safe before `getline`). */
+void discardRestOfLineIfBuffered();
+/** Format a float for display with exactly 2 digits after the decimal point. */
+std::string formatFixed2(float value);
 int getRandom(int min, int max);          // inclusive random int
 void printWithDelay(const std::string& text, int ms); // slow print
 

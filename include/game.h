@@ -1,5 +1,5 @@
 // game.h
-// Declaration of the Game class – controls the whole game flow.
+// Declaration of the Game class - controls the whole game flow.
 
 #ifndef GAME_H
 #define GAME_H
@@ -23,6 +23,7 @@ private:
     int currentRoomIndex;    // Index of the room the player is in (0-based)
     bool isRunning;          // True while the game is active
     bool playerWin;          // True if player cleared all rooms
+    bool pendingNewGameWelcome; // One-line welcome on first gameLoop screen after new game (not load)
 
     Player* player;          // Player object (dynamically allocated)
     std::string playerName;   // Name entered by the player
