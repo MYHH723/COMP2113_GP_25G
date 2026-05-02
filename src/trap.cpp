@@ -4,16 +4,20 @@
 #include <random>
 #include <string>
 
+// Random number generator for trap damage
 static std::mt19937 gen(std::random_device{}());
 
+// Default constructor: Initialize trap attributes
 Trap::Trap() 
     : trapType(TrapType::SPIKE_PIT), damage_min(0), damage_max(0), 
       trigger_count(0), isActive(true), description("") {
 }
 
+// Destructor
 Trap::~Trap() {
 }
 
+// Initialize trap type, damage, and description based on difficulty
 void Trap::initTrap(TrapType type, int difficulty) {
     trapType = type;
     trigger_count = 0;
@@ -45,6 +49,7 @@ void Trap::initTrap(TrapType type, int difficulty) {
             break;
     }
     
+    // Apply difficulty multiplier to trap damage
     float difficultyMultiplier = 1.0f;
     switch(difficulty) {
         case 1: difficultyMultiplier = 0.8f; break;
@@ -56,6 +61,7 @@ void Trap::initTrap(TrapType type, int difficulty) {
     damage_max = static_cast<int>(base_damage_max * difficultyMultiplier);
 }
 
+// Getter methods for trap attributes
 TrapType Trap::getTrapType() const { return trapType; }
 int Trap::getDamageMin() const { return damage_min; }
 int Trap::getDamageMax() const { return damage_max; }
@@ -63,9 +69,11 @@ int Trap::getTriggerCount() const { return trigger_count; }
 bool Trap::get_isActive() const { return isActive; }
 std::string Trap::getDescription() const { return description; }
 
+// Setter methods for trap state
 void Trap::setActive(bool active) { isActive = active; }
 void Trap::setTriggerCount(int count) { trigger_count = count; }
 
+// Activate trap and return random damage value
 int Trap::activateTrap() {
     if (!isActive) return 0;
     
@@ -74,16 +82,19 @@ int Trap::activateTrap() {
     return damageDist(gen);
 }
 
+// Trigger trap and apply damage + poison chance to player
 void Trap::triggerTrap(Player& player) {
     if (!isActive) return;
     
     int damage = activateTrap();
     player.change_HP(-static_cast<float>(damage));
     
+    // 30% chance to apply poison effect
     std::uniform_int_distribution<int> chanceDist(1, 100);
     if (chanceDist(gen) <= 30) player.set_isPoisoned(true);
 }
 
+// Return formatted trap information string
 std::string Trap::getTrapInfo() const {
     std::string typeStr;
     switch(trapType) {
