@@ -14,6 +14,13 @@
 #include <exception>
 
 namespace {
+/**
+ * @brief Safely get a boolean value from JSON
+ * @param j JSON object
+ * @param key Target key
+ * @param fallback Default value
+ * @return Parsed boolean
+ */
 
 bool jsonBool(const json& j, const char* key, bool fallback) {
     if (!j.contains(key)) return fallback;
@@ -22,7 +29,15 @@ bool jsonBool(const json& j, const char* key, bool fallback) {
     if (v.is_number_integer()) return v.get<int>() != 0;
     return fallback;
 }
-
+/**
+ * @brief Get integer from JSON with clamp range
+ * @param j JSON object
+ * @param key Target key
+ * @param fallback Default value
+ * @param lo Minimum value
+ * @param hi Maximum value
+ * @return Clamped integer
+ */
 int jsonIntClamped(const json& j, const char* key, int fallback, int lo, int hi) {
     if (!j.contains(key) || !j.at(key).is_number_integer()) return fallback;
     int x = j.at(key).get<int>();
@@ -41,7 +56,11 @@ std::string jsonString(const json& j, const char* key, const std::string& fallba
 }
 
 } // namespace
-
+/**
+ * @brief Saves current game state to JSON file
+ * Creates data directory and writes save atomically
+ * @return None
+ */
 void Game::saveGame() {
     if (!player) {
         std::cerr << "Error: Could not save (no player).\n";
@@ -101,6 +120,11 @@ void Game::saveGame() {
     }
 }
 
+/**
+ * @brief Loads game from save file
+ * Restores player, map, rooms, and progress
+ * @return LoadResult: Loaded / Failed / AlreadyCompleted
+ */
 Game::LoadResult Game::loadGame() {
     std::ifstream file("data/save.json");
     if (!file.is_open()) {
@@ -224,7 +248,10 @@ Game::LoadResult Game::loadGame() {
     pause();
     return LoadResult::Loaded;
 }
-
+/**
+ * @brief Pauses game and waits for user input
+ * @return None
+ */
 void Game::pause() {
     waitForEnter();
 }
