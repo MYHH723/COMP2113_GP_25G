@@ -1,8 +1,19 @@
+A list of non-standard C/C++ libraries, if any, that are used in your work and integrated to your
+code repo. Please also indicate what features in your game are supported by these libraries.
+
 # COMP2113_GP - Roguelike Dungeon Game
 
-A C++ based roguelike dungeon exploration game with difficulty scaling, combat system, merchant shop, and inventory management.
+A C++ based roguelike dungeon exploration game with difficulty scaling, combat system, merchant shop.
 
-## Project Overview
+## Group Member
+
+- Member1: Li Zhaotian 3033120221 
+- Member2: Zou Jiachen 3036481016
+- Member3: Jin Haoyue 3036529882
+- Member4: Wang Liheng 3036401523
+- Member5: Lin Shuhong 3036666513
+
+## Project Discription
 
 This is a text-based roguelike game where players navigate through procedurally generated dungeon rooms, fight monsters, avoid traps, manage inventory, and purchase items from a merchant. The game features three difficulty levels with scaled monster/trap difficulty.
 
@@ -12,53 +23,116 @@ This is a text-based roguelike game where players navigate through procedurally 
 - **Combat System**: Turn-based battle mechanics with attack, defend, and flee options
 - **Room Generation**: Procedurally generated dungeons with shops, treasure rooms, and boss encounters
 - **Player Progression**: Experience system, leveling, stat management, and save/load functionality
-- **Inventory System**: Item storage with equipment (Sword/Armor) and consumables (Potions)
 - **Shop System**: Buy/sell items with difficulty-based pricing and transaction logging
-- **Status Panel**: Real-time display of player stats, inventory, and status effects
+
+### Coding Requirements Matching
+
+| Coding Element | How It Supports the Features |
+|----------------|------------------------------|
+| **Generation of random events** | `mapgenerator.cpp` randomly determines room types (shop / treasure / boss / empty). `battlesystem.cpp` uses random damage rolls for attacks. `room.cpp` randomly spawns traps or events. This powers the **Room Generation** and **Combat System** features. |
+| **Data structures for storing data** | `player.h` defines `Player` and `Inventory` structs (using `std::vector` or arrays). `Item`, `Room`, and `Monster` data structures. 
+`type` defines struct and enum to store data. These organize all game state data efficiently, supporting **Player Progression** and **Shop System**. |
+| **Dynamic memory management** | Monsters, merchants, and items in shops are dynamically allocated using `new` and smart pointers when rooms are generated, and deallocated when cleared. Inventory in Player are dynamically allocated by pointer. These support **Room Generation** and **Combat System** and **Shop System** by managing objects created at runtime. |
+| **File input/output** | `savegame.cpp` uses the `nlohmann/json` library (from `third_party/json/`) to read/write `data/save.json`. Player health, level, inventory, and current room are serialized and loaded, directly supporting the **Player Progression** save/load functionality. |
+| **Program codes in multiple files** | The project is split into modular `.cpp` and `.h` files: `game.cpp`, `player.cpp`, `battlesystem.cpp`, `room.cpp`, `mapgenerator.cpp`, `merchant.cpp`, `shop.cpp`, etc. This separation of concerns makes the code maintainable and supports **all five features**. |
+| **Multiple Difficulty Levels** | Difficulty selected at startup in `main.cpp` or `game.cpp` affects monster stats (enemy scaling), trap damage, room ammount. Implemented in `battlesystem.cpp` (combat formulas), `trap.cpp` (damage calculation), `monster.cpp` (attribute multiplier), `game,cpp` (room ammount). This directly supports the **Difficulty System** feature. |
+
+### Non-Standard Libraries Used
+
+| Library | Version | Location in Repo | Integration Method | Features Supported |
+|---------|---------|-----------------|-------------------|-------------------|
+| **nlohmann/json** | Header-only (v3.11.2+) | `third_party/json/single_include/nlohmann/json.hpp` | Git submodule; included via `-I./third_party/json/single_include` in Makefile | **Player Progression**: JSON serialization/deserialization for save/load functionality. Player stats (HP, ATK, DEF, EXP, Money), inventory items, game state (difficulty, current room, win/lose status) are persisted to `data/save.json`. |
+
+> **Note**: All other functionality uses only standard C++ libraries: `<iostream>`, `<fstream>`, `<string>`, `<vector>`, `<list>`, `<map>`, `<algorithm>`, `<random>`, `<ctime>`, `<chrono>`, `<cmath>`, `<limits>`, `<sstream>`, `<iomanip>`, `<cstdlib>`, and `<filesystem>` .
+
+## Compilation & Execution Instruction
+
+### Clone the Repository
+
+```bash
+# Clone with submodules (recommended - includes third_party/json)
+git clone --recursive https://github.com/MYHH723/COMP2113_GP_25G
+cd COMP2113_GP_25G
+
+# Or if already cloned without --recursive
+git submodule update --init --recursive
+
+# Build and run
+make          # Build optimized version
+make run      # Build and run the game
+```
+
+## Platform Support
+
+- Linux Terminal (primary target)
+- SSH Environment
+- Mac (with proper terminal support)
+
+## Game Flow
+
+1. **Main Menu**: Player selects New Game, Load Game, or Exit
+2. **Difficulty Selection**: Choose Easy/Normal/Hard
+3. **Game Loop**:
+   - Enter next room
+   - Encounter monsters and/or traps
+   - Battle or shop interactions
+   - Room cleared → Progress to next room
+4. **Game End**: Win (all rooms cleared) or Lose (player HP = 0)
 
 ## Project Structure
 
 ```
 COMP2113_GP/
-├── src/.                    # Source code files
-│   ├── consoleUI.cpp.       # ConsoleUI
-│   ├── game.cpp.
-│   ├── main.cpp
-│   ├── room.cpp
-│   ├── savegame.cpp         # Progression saving
-│   └── player.cpp           # Player implementation
+├── src/                      # Source code files
+│   ├── consoleUI.cpp         # Console UI implementation
+│   ├── game.cpp              # Game core logic
+│   ├── main.cpp              # Program entry point 
+│   ├── room.cpp              # Room management 
+│   ├── battlesystem.cpp      # Combat mechanics 
+│   ├── item.cpp              # Item definitions 
+│   ├── gamelogger.cpp        # Transaction logging 
+│   ├── trap.cpp              # Trap mechanics 
+│   ├── types.cpp             # Type definitions 
+│   ├── utils.cpp             # Utility functions 
+│   ├── monster.cpp           # Monster behaviors 
+│   ├── mapgenerator.cpp      # Dungeon generation 
+│   ├── merchant.cpp          # Merchant logic 
+│   ├── shop.cpp              # Shop transactions 
+│   ├── savegame.cpp          # Progression saving 
+│   └── player.cpp            # Player implementation 
 │
-├── include/                 # Header files
-│   ├── game.h               # Game core control
-│   ├── player.h             # Player, Inventory, Panel classes
-│   ├── room.h               # Room management
-│   ├── mapgenerator.h       # Dungeon generation
-│   ├── monster.h            # Enemy monsters
-│   ├── trap.h               # Room traps
-│   ├── battlesystem.h       # Combat mechanics
-│   ├── item.h               # Item definitions
-│   ├── merchant.h           # Merchant/goods
-│   ├── shop.h               # Shop transactions
-│   ├── gamelogger.h         # Transaction logging
-│   ├── gametester.h         # Testing framework
-│   └── consoleUI.h         # Generate Console Window UI
+├── include/                  # Header files
+│   ├── game.h                # Game core control 
+│   ├── player.h              # Player, Inventory, Panel classes 
+│   ├── consoleUI.h           # Console UI header 
+│   ├── types.h               # Type definitions 
+│   ├── room.h                # Room management 
+│   ├── mapgenerator.h        # Dungeon generation 
+│   ├── monster.h             # Enemy monsters 
+│   ├── trap.h                # Room traps 
+│   ├── battlesystem.h        # Combat mechanics 
+│   ├── item.h                # Item definitions 
+│   ├── merchant.h            # Merchant/goods 
+│   ├── shop.h                # Shop transactions 
+│   ├── gamelogger.h          # Transaction logging 
+│   └── gametester.h          # Testing framework 
 │
-├── data/                     # Game data storage
-│   └── save.json            # Player save file (auto-generated)
+├── third_party/              # External dependencies 
+│   └── json/                 # nlohmann/json library 
 │
-├── docs/                     # Documentation
-│   └── HLD/                 # High-Level Design documents
-│       ├── Member1_HLD.txt  # Game core & difficulty system
-│       ├── Member2_HLD.txt  # Player system & inventory
-│       ├── Member3_4_HLD.txt # Combat & room systems
-│       └── Member5_HLD.txt  # Shop system
+├── data/                     # Game data storage 
+│   └── save.json             # Player save file 
 │
-└── README.md                 # This file
+├── docs/                     # Documentation 
+│
+├── Makefile                  # Build configuration 
+│
+└── README.md                 # This file 
 ```
 
 ## Module Breakdown
 
-### Member 1: Game Core (game.h)
+### Member 1: Game Core (game.h, main.h)
 
 - Main game loop and flow control
 - Difficulty selection and initialization
@@ -66,11 +140,10 @@ COMP2113_GP/
 - Utility functions (random, delays, screen clearing)
 - Global difficulty constants and multipliers
 
-### Member 2: Player System (player.h)
+### Member 2: Player System (player.h, savegame.h)
 
 - **Player Class**: Manages HP, ATK, DEF, EXP, Money, status effects
 - **Inventory Class**: Item storage with capacity limits (max 20 items)
-- **Panel Class**: Display formatted player stats, inventory, and conditions
 - Save/load functionality to JSON
 
 ### Member 3: Combat System (monster.h, trap.h, battlesystem.h)
@@ -97,17 +170,6 @@ COMP2113_GP/
 - **GameLogger Class**: Transaction logging
 - **GameTester Class**: Testing and bug reporting
 
-## Game Flow
-
-1. **Main Menu**: Player selects New Game, Load Game, or Exit
-2. **Difficulty Selection**: Choose Easy/Normal/Hard
-3. **Game Loop**:
-   - Enter next room
-   - Encounter monsters and/or traps
-   - Battle or shop interactions
-   - Room cleared → Progress to next room
-4. **Game End**: Victory (all rooms cleared) or Defeat (player HP = 0)
-
 ## Difficulty Scaling
 
 | Difficulty | Total Rooms | Monster HP | Trap Damage | Shop Frequency  |
@@ -118,60 +180,57 @@ COMP2113_GP/
 
 ## Player Stats
 
-- **HP**: 1000 (default), affected by damage/healing
-- **ATK**: 100 (default), affects damage dealt
-- **DEF**: 100 (default), reduces damage taken
+- **HP**: 100 (default), affected by damage/healing
+- **ATK**: 10 (default), affects damage dealt
+- **DEF**: 10 (default), reduces damage taken
 - **EXP**: Experience points for leveling
 - **Money**: Gold for purchasing items
-- **Status Effects**: Poisoned, Stunned (from items/monsters)
+- **level**: Player's grade
+- **score**: Summaries of battle and player attribute
+- **Status Effects**: Isalive
 
 ## Item System
 
 ### Potions (Consumable)
-
-- **Low Grade**: +5 HP, 5 gold
-- **Mid Grade**: +10 HP, 10 gold
-- **High Grade**: +15 HP, 15 gold
+- **Effect**: Heals 10-23 HP immediately upon purchase
+- **Usage**: Automatically consumed when bought from merchant
+- **Price**: Affected by difficulty multiplier (Easy: 0.8x, Normal: 1.0x, Hard: 1.3x)
 
 ### Swords (Equipment)
-
-- **Low Grade**: +10 ATK, 15 gold
-- **Mid Grade**: +20 ATK, 25 gold
-- **High Grade**: +30 ATK, 40 gold
+- **Effect**: Permanently increases ATK by +10 upon purchase
+- **Usage**: Buff applied immediately when buying from merchant
+- **Stacking**: Can be purchased multiple times for cumulative bonus
 
 ### Armor (Equipment)
+- **Effect**: Permanently increases DEF by +10 upon purchase
+- **Usage**: Buff applied immediately when buying from merchant
+- **Stacking**: Can be purchased multiple times for cumulative bonus
 
-- **Low Grade**: +5 DEF, 20 gold
-- **Mid Grade**: +10 DEF, 35 gold
-- **High Grade**: +15 DEF, 50 gold
+### Shop Mechanics
+- **Buying**: Items cost difficulty-adjusted prices; check your gold and inventory space first
+- **Selling**: Items sell for 50% of base price (sellDiscount = 0.5f)
+- **Merchant Dialogue**: Random flavor text for different actions (welcome, farewell, buying, selling, too poor, inventory full)
+
+### Difficulty Pricing
+| Difficulty | Price Multiplier |
+|------------|------------------|
+| Easy (0)   | 0.8x             |
+| Normal (1) | 1.0x             |
+| Hard (2)   | 1.3x             |
 
 ## Combat Mechanics
 
-- **Turn Order**: Player acts first, then monster responds
-- **Damage Formula**: `Damage = Attacker_ATK - Defender_DEF + Random(-10, +10)`
+- **Turn Order**: Player acts first → Monster responds (counter can interrupt)
+- **Attack**: `Damage = max(1, Player_ATK × (0.8~1.2) - Monster_DEF)`
+- **Defend**: 80% DEF boost for the round, then monster attacks
+- **Counter**: 25-65% success chance (scales with ATK, penalized by enemy level). Success = deal attack + bonus gold; Fail = take 10% increased damage
+- **Flee**: 70% success rate; on fail, monster attacks
 - **Minimum Damage**: 1 (cannot be reduced below 1)
-- **Flee Chance**: 40% success rate to escape battle
-- **Defend Action**: Reduces incoming damage by 30%
-- **Battle End Conditions**: Player Win, Player Lose, Flee Success
+- **Rewards**: EXP, Gold, and Score from defeated monsters
+- **Battle End**: Player Win / Player Lose / Flee Success
+- **Random Elements**: Damage variance (±20%), counter success rate, flee outcome, battle flavor text
 
-## Compilation
 
-```bash
-# Compile all sources
-g++ -std=c++11 -o game src/*.cpp
-
-# With debug symbols
-g++ -std=c++11 -g -o game src/*.cpp
-
-# Linux compilation
-g++ -std=c++11 -pthread -o game src/*.cpp
-```
-
-## Platform Support
-
-- Linux Terminal (primary target)
-- SSH Environment
-- Windows (with proper terminal support)
 
 ## Data Files
 
