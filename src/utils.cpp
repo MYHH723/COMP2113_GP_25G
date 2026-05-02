@@ -154,18 +154,17 @@ void printMonsterEncounterArt(const std::string& monsterName) {
     if (monsterName == "Skeleton Warrior") {
         // Pixel skull (13~14 cols) matching reference: #/B = dark, W/. = light (printed as space).
         static const char* const kSkull[] = {
-            "    #########    ",   // ....#####....  (4+5+4)
-            "  ##         ##   ",  // ...#WWWWW#...
-            " #             #  ",  // ..#WWWWWWW#..
-         "  ##   ###   ###    ## ",  // .##WWWWWWW##.
-     "     ##   ####   ####   ##  ",  // .#WBBWBBW#. centered to 13 cols
-          "##        #      ##   ",
-            " #     ###    # ",  // .#WWWWWWWWW#.
-            "  #           #  ",  // ..#WWWBWWW#..
-            "   #   # #    #   ",  // ...#WWWWW#...
-            "   #   # #    #   ",  // ...#W#W#W#...
-            "   #   # #    #   ",
-            "    #########    ",
+            "       #########        ", // ....#####....  (4+5+4)
+            "     ##         ##      ", // ...#WWWWW#...
+            "    #             #     ", // ..#WWWWWWW#..
+            "  ##   ###   ###   ##   ", // .##WWWWWWW##.
+            " ##  ####    ####    ## ", // .#WBBWBBW#. centered to 13 cols
+            "   ##      #      ##    ",
+            "     #           #      ", // .#WWWWWWWWW#.
+            "     #    # #    #      ", // ..#WWWBWWW#..
+            "     #    # #    #      ", // ...#WWWWW#...,  // ...#W#W#W#...
+            "     #    # #    #      ",
+            "      ##########        ",
         };
         for (const char* line : kSkull) {
             std::cout << "              " << line << "\n";
@@ -195,7 +194,7 @@ void printVictoryArt(int difficulty) {
 ##                                                                            ##
 ##    ********************************************************************    ##
 ##    *                                                                  *    ##
-##    *     C  O  N  G  R  A  T  U  L  A  T  I  O  N  S  !              *    ##
+##    *     C  O  N  G  R  A  T  U  L  A  T  I  O  N  S  !               *    ##
 ##    *                                                                  *    ##
 ##    *              >>>  E A S Y   M O D E  <<<                         *    ##
 ##    *                                                                  *    ##
