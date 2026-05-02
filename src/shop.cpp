@@ -146,8 +146,8 @@ void Shop::showShopUI() {
         merchant->showGoodsList();
         std::cout << "\n[Shop] Choose an option:\n";
         std::cout << "1. Buy Sword (+10 ATK)\n";
-        std::cout << "2. Buy Potion (+10~23 HP)\n";
-        std::cout << "3. Buy Armor (+10 DEF)\n";
+        std::cout << "2. Upgrade Potion (+10~23 HP)\n";
+        std::cout << "3. Upgrade Armor (+10 DEF)\n";
         std::cout << "0. Leave Shop\n";
         std::cout << "Choice: ";
 
