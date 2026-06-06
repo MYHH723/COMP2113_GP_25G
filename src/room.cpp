@@ -1,24 +1,96 @@
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include "room.h"
 #include "monster.h"
 #include "trap.h"
 #include "player.h"
-#include <cstdlib>
+#include "utils.h"
+
+namespace {
+
+enum class EncounterKind { GOBLIN, SKELETON, GOBLIN_NEST };
+
+// Per-room monster species roll (goblin nest only on Hard NORMAL rooms).
+EncounterKind rollEncounterKind(int diff, RoomType type) {
+    if (type == BOSS) {
+        return EncounterKind::SKELETON;
+    }
+    const int roll = getRandom(0, 99);
+    switch (diff) {
+    case 0: // Easy: mostly goblins, rare skeletons
+        return (roll < 12) ? EncounterKind::SKELETON : EncounterKind::GOBLIN;
+    case 1: // Normal: more skeletons than Easy, still goblin-heavy
+        return (roll < 22) ? EncounterKind::SKELETON : EncounterKind::GOBLIN;
+    default: // Hard
+        if (type == NORMAL && roll < 25) {
+            return EncounterKind::GOBLIN_NEST;
+        }
+        return EncounterKind::SKELETON;
+    }
+}
+
+int goblinLevel(int diff) {
+    return (diff <= 0) ? 1 : 2;
+}
+
+int skeletonLevel(int diff) {
+    return (diff <= 1) ? 3 : 4;
+}
+
+void spawnMonster(Monster* monster, int diff, EncounterKind kind) {
+    switch (kind) {
+    case EncounterKind::GOBLIN:
+    case EncounterKind::GOBLIN_NEST:
+        monster->initMonster(diff, goblinLevel(diff));
+        break;
+    case EncounterKind::SKELETON:
+        monster->initMonster(diff, skeletonLevel(diff));
+        break;
+    }
+}
+
+// Chance that a combat room spawns any traps; if yes, roll count in [minTraps, maxTraps].
+int rollTrapCount(int diff, RoomType type) {
+    int spawnChance = 0;
+    int minTraps = 0;
+    int maxTraps = 0;
+
+    switch (type) {
+    case NORMAL:
+        switch (diff) {
+        case 0: spawnChance = 35; minTraps = 1; maxTraps = 1; break; // Easy: 35%
+        case 1: spawnChance = 45; minTraps = 1; maxTraps = 2; break; // Normal: 45%
+        default: spawnChance = 55; minTraps = 1; maxTraps = 3; break; // Hard: 55%
+        }
+        break;
+    case BOSS:
+        switch (diff) {
+        case 0: spawnChance = 50; minTraps = 1; maxTraps = 2; break;
+        case 1: spawnChance = 60; minTraps = 1; maxTraps = 2; break;
+        default: spawnChance = 70; minTraps = 2; maxTraps = 3; break;
+        }
+        break;
+    case TREASURE:
+        return (getRandom(0, 99) < 35) ? 1 : 0;
+    default:
+        return 0;
+    }
+
+    if (getRandom(0, 99) >= spawnChance) {
+        return 0;
+    }
+    return getRandom(minTraps, maxTraps);
+}
+
+} // namespace
 
 // Constructor
 Room::Room()
     : roomId(0), difficulty(0), roomType(NORMAL),
-      hasShop(false), isCleared(false) {}
+      hasShop(false), isCleared(false), goblinNest(false) {}
 
-// Destructor
-Room::~Room()
-{
-    for (auto m : monsters)
-        delete m;
-    for (auto t : traps)
-        delete t;
-}
+Room::~Room() = default;
 
 // initialization of room
 void Room::initRoom(int id, int diff, RoomType type)
@@ -27,50 +99,44 @@ void Room::initRoom(int id, int diff, RoomType type)
     difficulty = diff;
     roomType = type;
     isCleared = false;
+    goblinNest = false;
     hasShop = (type == SHOP);
 }
 
 // room generation logic based on difficulty
 void Room::generateRoomContent(int diff)
 {
-    // Clear any existing content first
-    for (auto m : monsters)
-        delete m;
-    for (auto t : traps)
-        delete t;
     monsters.clear();
     traps.clear();
+    goblinNest = false;
 
     // Variables for monster and trap counts
     int monsterCount = 0;
     int trapCount = 0;
+    EncounterKind encounter = EncounterKind::GOBLIN;
 
     // Determine counts based on room type and difficulty
     switch (roomType)
     {
     case NORMAL:
-        // Normal rooms: 1-3 monsters, 0-2 traps (based on difficulty)
         switch (diff)
         {
-        case 0: // Easy: 1-2 monsters, 1-2 traps
-            monsterCount = 1 + rand() % 2;
-            trapCount = 1 + rand() % 2;
+        case 0:
+            monsterCount = getRandom(1, 2);
             break;
-        case 1: // Normal: 1-3 monsters, 1-3 traps
-            monsterCount = 1 + rand() % 3;
-            trapCount = 1 + rand() % 3;
+        case 1:
+            monsterCount = getRandom(1, 3);
             break;
-        case 2: // Hard: 1-3 monsters (still harder via monster stats), 2-4 traps
-            monsterCount = 1 + rand() % 3;
-            trapCount = 2 + rand() % 3;
+        default:
+            monsterCount = getRandom(1, 3);
             break;
         }
+        trapCount = rollTrapCount(diff, roomType);
         break;
 
     case BOSS:
-        // Boss rooms: 1 powerful monster, 2-3 traps
         monsterCount = 1;
-        trapCount = 2 + rand() % 2;
+        trapCount = rollTrapCount(diff, roomType);
         break;
 
     case SHOP:
@@ -80,28 +146,34 @@ void Room::generateRoomContent(int diff)
         break;
 
     case TREASURE:
-        // Treasure rooms: 0-1 weak monster, small chance of 1 trap
-        monsterCount = rand() % 2; // 0 or 1
-        trapCount = (rand() % 100 < 35) ? 1 : 0;
+        monsterCount = getRandom(0, 1);
+        trapCount = rollTrapCount(diff, roomType);
         break;
+    }
+
+    if (monsterCount > 0 && roomType != SHOP) {
+        encounter = rollEncounterKind(diff, roomType);
+        if (encounter == EncounterKind::GOBLIN_NEST) {
+            monsterCount = 3;
+            goblinNest = true;
+        }
     }
 
     // Create monsters
     for (int i = 0; i < monsterCount; i++)
     {
-        Monster *monster = new Monster();
-        monster->initMonster(diff, diff + 1); // level based on difficulty
-        monsters.push_back(monster);
+        std::unique_ptr<Monster> monster(new Monster());
+        spawnMonster(monster.get(), diff, encounter);
+        monsters.push_back(std::move(monster));
     }
 
-    // Create traps
     for (int i = 0; i < trapCount; i++)
     {
-        Trap *trap = new Trap();
+        std::unique_ptr<Trap> trap(new Trap());
 
         // Randomly select trap type
         TrapType type = TrapType::SPIKE_PIT;
-        int trapRoll = rand() % 4;
+        int trapRoll = getRandom(0, 3);
         switch (trapRoll)
         {
         case 0:
@@ -121,7 +193,7 @@ void Room::generateRoomContent(int diff)
         }
 
         trap->initTrap(type, diff);
-        traps.push_back(trap);
+        traps.push_back(std::move(trap));
     }
 
     // Update room description based on content
@@ -129,7 +201,11 @@ void Room::generateRoomContent(int diff)
     switch (roomType)
     {
     case NORMAL:
-        desc << "A dimly lit chamber with " << monsterCount << " enemies lurking.";
+        if (goblinNest) {
+            desc << "A foul Goblin Nest teeming with " << monsterCount << " goblins.";
+        } else {
+            desc << "A dimly lit chamber with " << monsterCount << " enemies lurking.";
+        }
         break;
     case BOSS:
         desc << "A grand hall. A powerful foe awaits!";
@@ -206,12 +282,12 @@ int Room::getDifficulty() const
     return difficulty;
 }
 
-std::vector<Monster *> Room::getMonsters() const
+const std::vector<std::unique_ptr<Monster>>& Room::getMonsters() const
 {
     return monsters;
 }
 
-std::vector<Trap *> Room::getTraps() const
+const std::vector<std::unique_ptr<Trap>>& Room::getTraps() const
 {
     return traps;
 }
@@ -219,6 +295,11 @@ std::vector<Trap *> Room::getTraps() const
 std::string Room::getDescription() const
 {
     return description;
+}
+
+bool Room::isGoblinNestRoom() const
+{
+    return goblinNest;
 }
 
 // Setters

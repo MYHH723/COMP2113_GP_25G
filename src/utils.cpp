@@ -14,14 +14,13 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
+#include <cerrno>
 
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
+#include <direct.h>
 #include <conio.h>
 #else
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 #endif
@@ -29,30 +28,17 @@
 namespace {
 
 #ifdef _WIN32
-/** Prefer Console API so Mintty/Cursor terminals still suppress junk keys when attached to console. */
 void waitEnterSilently() {
-    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-    DWORD mode = 0;
-    if (hIn != INVALID_HANDLE_VALUE && hIn != nullptr && GetConsoleMode(hIn, &mode)) {
-        const DWORD saved = mode;
-        DWORD tweaked = mode & ~(DWORD)(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
-        if (SetConsoleMode(hIn, tweaked)) {
-            char ch = 0;
-            DWORD nr = 0;
-            while (ReadConsoleA(hIn, &ch, 1, &nr, nullptr) && nr == 1) {
-                if (ch == '\r' || ch == '\n') break;
-            }
-            SetConsoleMode(hIn, saved);
-            std::cin.clear();
-            return;
-        }
-        SetConsoleMode(hIn, saved);
+    std::cin.clear();
+    std::string line;
+    if (std::getline(std::cin, line)) {
+        return;
     }
+    std::cin.clear();
     for (;;) {
         const int c = _getch();
         if (c == '\r' || c == '\n') break;
     }
-    std::cin.clear();
 }
 #else
 struct TermiosGuard {
@@ -132,6 +118,16 @@ void discardRestOfLineIfBuffered() {
     }
 }
 
+bool promptYesNo(const char* prompt) {
+    std::cout << prompt << std::flush;
+    discardRestOfLineIfBuffered();
+    std::string line;
+    if (!std::getline(std::cin, line)) return false;
+    if (line.empty()) return false;
+    const char c = line[0];
+    return c == 'y' || c == 'Y' || c == '1';
+}
+
 std::string formatFixed2(float value) {
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(2) << value;
@@ -139,7 +135,37 @@ std::string formatFixed2(float value) {
 }
 
 int getRandom(int min, int max) {
+    if (max <= min) return min;
     return min + std::rand() % (max - min + 1);
+}
+
+float getRandomFloat(float min, float max) {
+    if (max <= min) return min;
+    constexpr int kScale = 10000;
+    const int roll = getRandom(0, kScale);
+    return min + (max - min) * static_cast<float>(roll) / static_cast<float>(kScale);
+}
+
+bool getRandomChance(int percent) {
+    if (percent <= 0) return false;
+    if (percent >= 100) return true;
+    return getRandom(1, 100) <= percent;
+}
+
+void seedGameRandom(unsigned int seed) {
+    std::srand(seed);
+}
+
+bool ensureDataDirectory() {
+#ifdef _WIN32
+    return _mkdir("data") == 0 || errno == EEXIST;
+#else
+    return mkdir("data", 0755) == 0 || errno == EEXIST;
+#endif
+}
+
+std::string getSaveFilePath() {
+    return "data/save.json";
 }
 
 void printWithDelay(const std::string& text, int ms) {

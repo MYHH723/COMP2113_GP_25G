@@ -1,11 +1,52 @@
 #include "trap.h"
 #include "player.h"
+#include "balance.h"
+#include "utils.h"
 #include <iostream>
-#include <random>
 #include <string>
+#include <algorithm>
 
-// Random number generator for trap damage
-static std::mt19937 gen(std::random_device{}());
+namespace {
+
+const char* pickRandomLine(const char* const* lines, size_t count) {
+    if (count == 0) return "";
+    const size_t idx = static_cast<size_t>(getRandom(0, static_cast<int>(count) - 1));
+    return lines[idx];
+}
+
+const char* const kSpikePitDesc[] = {
+    "Spikes suddenly emerge from the flagstones!",
+    "The floor gives way to iron teeth hungry for blood!",
+    "A pit yawns open - spears greet you like unwelcome hosts.",
+    "Hidden springs snap; the ground becomes a garden of steel.",
+    "Wrought spikes thrust upward, relics of a cruel architect.",
+};
+
+const char* const kPoisonGasDesc[] = {
+    "Poisonous vapour seeps from cracks in the masonry!",
+    "Green mist rolls along the floor, sweet and deadly.",
+    "A hiss - alchemical fumes claim the very air you need.",
+    "The chamber exhales venom; your lungs protest.",
+    "Ancient bellows release a witch's breath upon you.",
+};
+
+const char* const kFallingBlockDesc[] = {
+    "Rocks thunder down from the vaulted ceiling!",
+    "Masonry breaks loose - the hall tries to bury you alive.",
+    "A grinding roar; stone rain punishes the unwary.",
+    "Timbers snap; the ceiling gifts you crushing weight.",
+    "Dust and boulders fall like judgement from above.",
+};
+
+const char* const kFireBlastDesc[] = {
+    "Fire erupts from hidden vents in the wall!",
+    "A jet of flame roars across the stones like dragon's breath.",
+    "Oil ignites; the corridor becomes a brief inferno.",
+    "Brass nozzles spit hellfire - some long-dead hand designed this.",
+    "Heat blooms without warning; mail glows, flesh remembers.",
+};
+
+} // namespace
 
 // Default constructor: Initialize trap attributes
 Trap::Trap() 
@@ -19,46 +60,38 @@ Trap::~Trap() {
 
 // Initialize trap type, damage, and description based on difficulty
 void Trap::initTrap(TrapType type, int difficulty) {
+    (void)difficulty;
     trapType = type;
     trigger_count = 0;
     isActive = true;
-    
-    int base_damage_min = 0;
-    int base_damage_max = 0;
-    
-    switch(type) {
+
+    switch (type) {
         case TrapType::SPIKE_PIT:
-            base_damage_min = 8;
-            base_damage_max = 12;
-            description = "Spikes suddenly emerge from the ground!";
+            description = pickRandomLine(kSpikePitDesc, sizeof(kSpikePitDesc) / sizeof(kSpikePitDesc[0]));
             break;
         case TrapType::POISON_GAS:
-            base_damage_min = 5;
-            base_damage_max = 8;
-            description = "Poisonous gas fills the air!";
+            description = pickRandomLine(kPoisonGasDesc, sizeof(kPoisonGasDesc) / sizeof(kPoisonGasDesc[0]));
             break;
         case TrapType::FALLING_BLOCK:
-            base_damage_min = 10;
-            base_damage_max = 15;
-            description = "Rocks fall from the ceiling!";
+            description = pickRandomLine(kFallingBlockDesc, sizeof(kFallingBlockDesc) / sizeof(kFallingBlockDesc[0]));
             break;
         case TrapType::FIRE_BLAST:
-            base_damage_min = 7;
-            base_damage_max = 10;
-            description = "Fire erupts from the wall!";
+            description = pickRandomLine(kFireBlastDesc, sizeof(kFireBlastDesc) / sizeof(kFireBlastDesc[0]));
             break;
     }
-    
-    // Apply difficulty multiplier to trap damage
-    float difficultyMultiplier = 1.0f;
-    switch(difficulty) {
-        case 1: difficultyMultiplier = 0.8f; break;
-        case 2: difficultyMultiplier = 1.0f; break;
-        case 3: difficultyMultiplier = 1.5f; break;
+
+    float typeScale = 1.0f;
+    switch(type) {
+        case TrapType::SPIKE_PIT: typeScale = 1.0f; break;
+        case TrapType::POISON_GAS: typeScale = 0.7f; break;
+        case TrapType::FALLING_BLOCK: typeScale = 1.2f; break;
+        case TrapType::FIRE_BLAST: typeScale = 0.85f; break;
     }
-    
-    damage_min = static_cast<int>(base_damage_min * difficultyMultiplier);
-    damage_max = static_cast<int>(base_damage_max * difficultyMultiplier);
+
+    const int baseMin = g_trapDamageMin > 0 ? g_trapDamageMin : 5;
+    const int baseMax = g_trapDamageMax > 0 ? g_trapDamageMax : 12;
+    damage_min = std::max(1, static_cast<int>(baseMin * typeScale));
+    damage_max = std::max(damage_min, static_cast<int>(baseMax * typeScale));
 }
 
 // Getter methods for trap attributes
@@ -78,8 +111,7 @@ int Trap::activateTrap() {
     if (!isActive) return 0;
     
     trigger_count++;
-    std::uniform_int_distribution<int> damageDist(damage_min, damage_max);
-    return damageDist(gen);
+    return getRandom(damage_min, damage_max);
 }
 
 // Trigger trap and apply damage + poison chance to player
@@ -88,10 +120,9 @@ void Trap::triggerTrap(Player& player) {
     
     int damage = activateTrap();
     player.change_HP(-static_cast<float>(damage));
-    
-    // 30% chance to apply poison effect
-    std::uniform_int_distribution<int> chanceDist(1, 100);
-    if (chanceDist(gen) <= 30) player.set_isPoisoned(true);
+    isActive = false;
+
+    if (getRandomChance(30)) player.set_isPoisoned(true);
 }
 
 // Return formatted trap information string

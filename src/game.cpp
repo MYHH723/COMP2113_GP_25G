@@ -1,4 +1,3 @@
-#include "savegame.h"  
 // game.cpp
 // Implementation of the Game class.
 
@@ -6,43 +5,123 @@
 #include "player.h"
 #include "mapgenerator.h"
 #include "room.h"
+#include "monster.h"
 #include "battlesystem.h"
 #include "shop.h"
 #include "utils.h"
 #include "merchant.h"
 #include "consoleUI.h"
+#include "trap.h"
+#include "balance.h"
 
 #include <iostream>
-#include <fstream>
 #include <cstdlib>
 #include <string>
 #include <algorithm>
 #include <ctime>
-#include <random>
 #include <chrono>
-#include <limits>
-#include "third_party/json/single_include/nlohmann/json.hpp"  // JSON library - make sure it's included in your project
-
-using json = nlohmann::json;
+#include <memory>
 
 // ========== Difficulty constants (matching README) ==========
 const int MAX_ROOMS_EASY   = 10;
 const int MAX_ROOMS_NORMAL = 15;
 const int MAX_ROOMS_HARD   = 20;
 
-// ========== Constructor & Destructor ==========
-Game::Game()
-    : seed(std::time(nullptr)),difficulty(1), totalRooms(MAX_ROOMS_NORMAL), currentRoomIndex(0),
-      isRunning(false), playerWin(false), pendingNewGameWelcome(false), player(nullptr), mapGen(nullptr) {
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+namespace {
+
+void printRandomFlavor(const char* const* lines, size_t count) {
+    if (count == 0) return;
+    const size_t idx = static_cast<size_t>(getRandom(0, static_cast<int>(count) - 1));
+    std::cout << "  * " << lines[idx] << "\n";
 }
 
-Game::~Game() {
-    delete player;
-    delete mapGen;
-    for (Room* r : rooms) delete r;
-    rooms.clear();
+const char* const kNewGameWelcome[] = {
+    "Game started! Good luck, ",
+    "The vaults await, ",
+    "By torch and steel, ",
+    "Fortune favour you, ",
+    "May your mail hold and your purse grow, ",
+};
+
+const char* const kGoblinNestIntro[] = {
+    "A stench of rot and squealing - goblins pour from every crevice!",
+    "Yellow eyes blink in the dark; the nest awakens hungry.",
+    "Three goblins scramble forth, chittering like devils at compline.",
+    "The nest boils over; small foes, savage teeth.",
+    "Goblins! A writhing pack spills across the stones toward you.",
+};
+
+const char* const kAnotherFoe[] = {
+    "Ready your steel - the hall is not yet quiet.",
+    "Another shape lurches from the gloom, unwilling to yield.",
+    "The first lies broken; a second hungers for the tale.",
+    "Steel still warm, yet another foe demands audience.",
+    "The chamber is not satisfied - one more stands defiant.",
+};
+
+const char* const kRetreatAfterFlee[] = {
+    "You retreated. This room remains ahead of you.",
+    "The hall keeps its secrets; you live to try again.",
+    "Withdrawal is not defeat - the stones will wait.",
+    "You escape with breath intact; the foe keeps the ground.",
+    "Live today; the dungeon is patient, and so must you be.",
+};
+
+const char* const kShopIntro[] = {
+    "A pedlar's stall glows beneath sputtering torchlight - the merchant has set up camp.",
+    "The clink of coin and scent of oiled steel mark a trader's haven in the deep.",
+    "Wares hang from rusted hooks; a smiling merchant bids you spend your gold.",
+    "Shelter from the slaughter, for a price - the travelling seller awaits.",
+    "Canvas, counter, and coffers - fortune sells its wares in this hall.",
+};
+
+const char* const kTreasureIntro[] = {
+    "Gold glints from a chest, but the chamber may not be empty...",
+    "A coffer gleams beneath cobwebs - silence is seldom honest here.",
+    "Treasure hoarded by dead hands; perhaps guarded by living ones.",
+    "Coins wink like false stars; tread softly, pilgrim.",
+    "Riches and ruin often share one lock - proceed with steel ready.",
+};
+
+const char* const kChestOpen[] = {
+    "You open the chest! Gained ",
+    "The lock surrenders; you claim ",
+    "Dead men's gold becomes yours: ",
+    "The hoard yields ",
+    "With a rusted groan, the chest releases ",
+};
+
+const char* const kRoomCleared[] = {
+    "Room cleared!",
+    "The hall falls silent - for now, you stand victorious.",
+    "Foes broken; the stones grant you brief peace.",
+    "Another chamber conquered; your legend grows by a line.",
+    "Silence returns, heavy as a chapel after battle.",
+};
+
+const char* const kTrapAftermath[] = {
+    "The mechanism groans and stills, sated with mischief.",
+    "Dust settles; pain remains - press on or perish.",
+    "Ancient malice spent itself in one cruel moment.",
+    "The trap sleeps again, content with its toll.",
+    "Stone and spring remember old architects of sorrow.",
+};
+
+void runPreRoomMenu(Player* player, int roomNumber, int totalRooms,
+                    const std::string& welcomeBanner) {
+    if (!player) return;
+    ConsoleUI::runPreRoomMenu(*player, roomNumber, totalRooms, welcomeBanner);
 }
+
+} // namespace
+
+// ========== Constructor & Destructor ==========
+Game::Game()
+    : seed(std::time(nullptr)), difficulty(1), totalRooms(MAX_ROOMS_NORMAL), currentRoomIndex(0),
+      isRunning(false), playerWin(false), pendingNewGameWelcome(false) {
+}
+
+Game::~Game() = default;
 
 // ========== Menu and Initialization ==========
 void Game::showMainMenu() {
@@ -66,7 +145,9 @@ void Game::showMainMenu() {
         discardRestOfLine();
 
         if (choice == 1) {
-            selectDifficulty();
+            if (!selectDifficulty()) {
+                continue;
+            }
             initGame();
             gameLoop();
         } else if (choice == 2) {
@@ -87,7 +168,7 @@ void Game::showMainMenu() {
     }
 }
 
-void Game::selectDifficulty() {
+bool Game::selectDifficulty() {
     int d = 0;
     while (true) {
         clearScreen();
@@ -95,7 +176,8 @@ void Game::selectDifficulty() {
         std::cout << "1. Easy   (10 rooms, weak monsters, low trap damage)\n";
         std::cout << "2. Normal (15 rooms, standard)\n";
         std::cout << "3. Hard   (20 rooms, tough monsters, high trap damage)\n";
-        std::cout << "Choice (1-3): ";
+        std::cout << "0. Back to main menu\n";
+        std::cout << "Choice (0-3): ";
 
         if (!(std::cin >> d)) {
             std::cin.clear();
@@ -106,8 +188,11 @@ void Game::selectDifficulty() {
         }
         discardRestOfLine();
 
+        if (d == 0) {
+            return false;
+        }
         if (d < 1 || d > 3) {
-            std::cout << "\nInvalid choice. You must enter 1, 2, or 3.\n";
+            std::cout << "\nInvalid choice. Enter 0 to go back, or 1, 2, or 3.\n";
             pause();
             continue;
         }
@@ -120,15 +205,14 @@ void Game::selectDifficulty() {
         }
         std::cout << "\nDifficulty set. Total rooms: " << totalRooms << "\n";
         pause();
-        return;
+        return true;
     }
 }
 
 void Game::initGame() {
     // Clean up previous game data (if any)
-    delete player;
-    delete mapGen;
-    for (Room* r : rooms) delete r;
+    player.reset();
+    mapGen.reset();
     rooms.clear();
 
     // Get player name (line-based, same idea as battle choice: empty line re-prompts)
@@ -152,16 +236,14 @@ void Game::initGame() {
         break;
     }
 
-    // Create player (stats follow README: HP=1000, ATK=100, DEF=100, starting gold=500)
-    player = new Player(playerName);
+    // Create player (stats: see player.h DEFAULT_* / README Player Stats)
+    player.reset(new Player(playerName));
 
-    // Create map generator
-    std::mt19937 rng;
-    unsigned int seed = static_cast<unsigned int>(
+    seed = static_cast<int>(
         std::chrono::steady_clock::now().time_since_epoch().count()
     );
-    rng.seed(seed);
-    mapGen = new MapGenerator(seed);
+    seedGameRandom(static_cast<unsigned>(seed));
+    mapGen.reset(new MapGenerator(seed));
 
     // Apply difficulty scaling (sets global modifiers for monsters/traps)
     applyDifficultyScaling();
@@ -175,21 +257,14 @@ void Game::initGame() {
     pendingNewGameWelcome = true;
 }
 
-// ========== Global difficulty scaling variables ==========
-float g_monsterHpMultiplier = 1.0f;
-int g_trapDamageMin = 0;
-int g_trapDamageMax = 0;
-
 void Game::applyDifficultyScaling() {
     // Monster HP multipliers (Easy: 0.8, Normal: 1.0, Hard: 1.3)
     const float MONSTER_HP_MULT[] = {0.8f, 1.0f, 1.3f};
 
-    // Trap damage ranges (Increased to be meaningful for 1000 HP)
-    // Easy:    80 - 150
-    // Normal: 150 - 280
-    // Hard:   250 - 450
-    const int TRAP_DAMAGE_MIN[] = {80, 150, 250};
-    const int TRAP_DAMAGE_MAX[] = {150, 280, 450};
+    // Trap damage ranges (scaled for DEFAULT_HP = 100; per-type multiplier in trap.cpp)
+    // Easy: 5-12, Normal: 8-18, Hard: 12-25
+    const int TRAP_DAMAGE_MIN[] = {5, 8, 12};
+    const int TRAP_DAMAGE_MAX[] = {12, 18, 25};
 
     // Set global variables based on current difficulty (clamp index for corrupt saves)
     const int di = std::max(0, std::min(2, difficulty));
@@ -203,21 +278,116 @@ void Game::generateRooms() {
     // generateMap() must be called before reading generated rooms.
     mapGen->initMapGenerator(totalRooms, difficulty);
     mapGen->generateMap();
-    rooms = mapGen->getGeneratedRooms();
+    rooms = mapGen->releaseRooms();
+}
+
+bool Game::triggerRoomTraps(Room* room) {
+    if (!room || !player) return false;
+
+    const auto& traps = room->getTraps();
+    for (const auto& trapPtr : traps) {
+        Trap* trap = trapPtr.get();
+        if (!trap || !trap->get_isActive()) continue;
+
+        std::cout << "\n*** TRAP! ***\n" << trap->getDescription() << "\n";
+        const float hpBefore = player->get_HP();
+        trap->triggerTrap(*player);
+        const int damage = static_cast<int>(hpBefore - player->get_HP());
+        std::cout << "You take " << damage << " damage! HP: "
+                  << static_cast<int>(player->get_HP()) << "\n";
+        printRandomFlavor(kTrapAftermath, sizeof(kTrapAftermath) / sizeof(kTrapAftermath[0]));
+        pause();
+
+        if (!player->get_isAlive()) {
+            isRunning = false;
+            playerWin = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+Game::RoomCombatResult Game::fightRoomMonsters(Room* room) {
+    if (!room || !player) return RoomCombatResult::Empty;
+
+    const auto& monsters = room->getMonsters();
+    if (monsters.empty()) return RoomCombatResult::Empty;
+
+    BattleSystem battle;
+    float totalExp = 0.0f;
+    float totalGold = 0.0f;
+    float totalScore = 0.0f;
+
+    const size_t monsterCount = monsters.size();
+    for (size_t mi = 0; mi < monsterCount; ++mi) {
+        Monster* monster = monsters[mi].get();
+        if (!monster || !monster->get_isAlive()) continue;
+
+        if (mi > 0) {
+            std::cout << "\n========================================\n";
+            std::cout << "  Another foe appears! ("
+                      << (mi + 1) << " / " << monsterCount << ")\n";
+            printRandomFlavor(kAnotherFoe, sizeof(kAnotherFoe) / sizeof(kAnotherFoe[0]));
+            std::cout << "========================================\n";
+            pause();
+        }
+
+        battle.initBattle(player.get(), monster);
+        battle.startBattle();
+
+        while (battle.get_isBattleActive()) {
+            battle.executeBattleRound();
+        }
+        battle.endBattle();
+
+        const BattleResult result = battle.getLastResult();
+        if (result == BattleResult::PLAYER_LOSE) {
+            isRunning = false;
+            playerWin = false;
+            return RoomCombatResult::Lost;
+        }
+        if (result == BattleResult::PLAYER_FLEE) {
+            const float* rewards = battle.getRewards();
+            totalExp += rewards[0];
+            totalGold += rewards[1];
+            totalScore += rewards[2];
+            player->change_EXP(totalExp);
+            player->change_Money(totalGold);
+            player->change_score(totalScore);
+            std::cout << battle.showBattleLog() << std::endl;
+            return RoomCombatResult::Fled;
+        }
+        if (result == BattleResult::PLAYER_WIN) {
+            const float* rewards = battle.getRewards();
+            totalExp += rewards[0];
+            totalGold += rewards[1];
+            totalScore += rewards[2];
+        }
+    }
+
+    player->change_EXP(totalExp);
+    player->change_Money(totalGold);
+    player->change_score(totalScore);
+    room->clearRoom();
+
+    printRandomFlavor(kRoomCleared, sizeof(kRoomCleared) / sizeof(kRoomCleared[0]));
+    std::cout << " Gained " << formatFixed2(totalExp) << " EXP, "
+              << formatFixed2(totalGold) << " Gold, " << formatFixed2(totalScore) << " Score.\n";
+    std::cout << battle.showBattleLog() << std::endl;
+    return RoomCombatResult::Cleared;
 }
 
 // ========== Main Game Loop ==========
 void Game::gameLoop() {
     while (isRunning && currentRoomIndex < totalRooms) {
-        clearScreen();
+        std::string welcomeBanner;
         if (pendingNewGameWelcome) {
-            std::cout << "Game started! Good luck, " << playerName << "!\n\n";
+            const size_t wi = static_cast<size_t>(
+                getRandom(0, static_cast<int>(sizeof(kNewGameWelcome) / sizeof(kNewGameWelcome[0])) - 1));
+            welcomeBanner = std::string(kNewGameWelcome[wi]) + playerName + "!\n\n";
             pendingNewGameWelcome = false;
         }
-        std::cout << "\n===== Room " << (currentRoomIndex + 1) << " / " << totalRooms << " =====\n";
-
-        // Show player status (using Player's display method)
-        ConsoleUI::showPlayerStatus(*player);
+        runPreRoomMenu(player.get(), currentRoomIndex + 1, totalRooms, welcomeBanner);
 
         // Process the current room
         enterNextRoom();
@@ -242,118 +412,92 @@ void Game::enterNextRoom() {
         return;
     }
 
-    Room* currentRoom = rooms[currentRoomIndex];
-    currentRoomIndex++;
+    Room* currentRoom = rooms[static_cast<size_t>(currentRoomIndex)].get();
+    bool advanceRoom = false;
+    bool verboseSave = false;
 
     RoomType type = currentRoom->getRoomType();
 
     switch (type) {
         case RoomType::NORMAL:
         case RoomType::BOSS: {
-            std::vector<Monster*> monsters = currentRoom->getMonsters();
-            BattleSystem battle;
-            bool playerLost = false;
-            bool playerFled = false;
-
-            // 用于累积整个房间的总奖励
-            float totalExp = 0.0f;
-            float totalGold = 0.0f;
-            float totalScore = 0.0f;
-
-            const size_t monsterCount = monsters.size();
-            for (size_t mi = 0; mi < monsterCount; ++mi) {
-                Monster* monster = monsters[mi];
-                if (!monster) continue;
-                if (playerLost || playerFled) break;
-
-                if (mi > 0) {
-                    std::cout << "\n========================================\n";
-                    std::cout << "  Another foe appears! ("
-                              << (mi + 1) << " / " << monsterCount << ")\n";
-                    std::cout << "  Ready your steel - the hall is not yet quiet.\n";
-                    std::cout << "========================================\n";
-                    pause();
-                }
-
-                battle.initBattle(player, monster);
-                battle.startBattle();
-
-                while (battle.get_isBattleActive()) {
-                    battle.executeBattleRound();
-                }
-                battle.endBattle();
-
-                BattleResult result = battle.getLastResult();
-                if (result == BattleResult::PLAYER_LOSE) {
-                    playerLost = true;
-                    break;
-                } else if (result == BattleResult::PLAYER_FLEE) {
-                    playerFled = true;
-                    // 逃跑时，已经获得的奖励（之前击败怪物的）也应该保留，但这里先显示日志并应用已累积部分
-                    std::cout << battle.showBattleLog() << std::endl;
-                    // 注意：逃跑时可能已经击败了一部分怪物，需要把已经累积的奖励给玩家
-                    player->change_EXP(totalExp);
-                    player->change_Money(totalGold);
-                    player->change_score(totalScore);
-                    // 再应用本场战斗（逃跑这场）的奖励（如果有，但逃跑时怪物未死，通常没有奖励）
-                    battle.applyRewards();
-                    saveGame();
-                    return;
-                } else if (result == BattleResult::PLAYER_WIN) {
-                    // 累积本只怪物的奖励，但不立即应用
-                    const float* rewards = battle.getRewards();
-                    totalExp += rewards[0];
-                    totalGold += rewards[1];
-                    totalScore += rewards[2];
-                }
-            }
-
-            // 处理最终结果
-            if (playerLost) {
-                // 死亡：不给予任何奖励（已经扣除血量等，游戏结束）
-                isRunning = false;
-                playerWin = false;
-                return;
-            }
-            if (playerFled) {
-                // 已在上面处理，直接返回
+            if (triggerRoomTraps(currentRoom)) {
+                saveGame();
                 return;
             }
 
-            // 全部怪物胜利：一次性发放所有累积的奖励
-            player->change_EXP(totalExp);
-            player->change_Money(totalGold);
-            player->change_score(totalScore);
+            if (currentRoom->isGoblinNestRoom()) {
+                std::cout << "\n*** GOBLIN NEST ***\n";
+                printRandomFlavor(kGoblinNestIntro,
+                                  sizeof(kGoblinNestIntro) / sizeof(kGoblinNestIntro[0]));
+                std::cout << "\n";
+                pause();
+            }
 
-            playerWin = false;
-            // 显示最后一次战斗的日志（或者显示胜利信息）
-            std::cout << "Room cleared! Gained " << formatFixed2(totalExp) << " EXP, "
-                      << formatFixed2(totalGold) << " Gold, " << formatFixed2(totalScore) << " Score.\n";
-            std::cout << battle.showBattleLog() << std::endl;
+            const RoomCombatResult combat = fightRoomMonsters(currentRoom);
+            if (combat == RoomCombatResult::Lost) return;
+            if (combat == RoomCombatResult::Fled) {
+                printRandomFlavor(kRetreatAfterFlee,
+                                  sizeof(kRetreatAfterFlee) / sizeof(kRetreatAfterFlee[0]));
+                saveGame();
+                return;
+            }
+            advanceRoom = true;
             break;
         }
 
         case RoomType::SHOP: {
-            Merchant* merchant = new Merchant(difficulty, seed);
+            std::cout << "\n*** MERCHANT SHOP ***\n";
+            printRandomFlavor(kShopIntro, sizeof(kShopIntro) / sizeof(kShopIntro[0]));
+            std::cout << "\n";
+            pause();
+            Merchant merchant(difficulty, seed);
             Shop shop;
-            shop.initShop(merchant, player);
+            shop.initShop(&merchant, player.get());
             shop.showShopUI();
-            delete merchant;
+            advanceRoom = true;
+            verboseSave = true;
             break;
         }
 
         case RoomType::TREASURE: {
-            int gold = 50 + rand() % 151;
-            player->change_Money(gold);
-            std::cout << "You found a treasure chest! Gained " << gold << " gold.\n";
+            std::cout << "\n*** TREASURE ROOM ***\n";
+            printRandomFlavor(kTreasureIntro, sizeof(kTreasureIntro) / sizeof(kTreasureIntro[0]));
+            std::cout << "\n";
+
+            if (triggerRoomTraps(currentRoom)) {
+                saveGame();
+                return;
+            }
+
+            const RoomCombatResult combat = fightRoomMonsters(currentRoom);
+            if (combat == RoomCombatResult::Lost) return;
+            if (combat == RoomCombatResult::Fled) {
+                printRandomFlavor(kRetreatAfterFlee,
+                                  sizeof(kRetreatAfterFlee) / sizeof(kRetreatAfterFlee[0]));
+                saveGame();
+                return;
+            }
+
+            const int gold = getRandom(50, 200);
+            player->change_Money(static_cast<float>(gold));
+            currentRoom->clearRoom();
+            const size_t ci = static_cast<size_t>(
+                getRandom(0, static_cast<int>(sizeof(kChestOpen) / sizeof(kChestOpen[0])) - 1));
+            std::cout << kChestOpen[ci] << gold << " gold.\n";
+            advanceRoom = true;
             break;
         }
 
         default:
+            advanceRoom = true;
             break;
     }
 
-    saveGame();
+    if (advanceRoom) {
+        currentRoomIndex++;
+    }
+    saveGame(verboseSave);
 }
 // ========== Game End Logic ==========
 void Game::checkGameOver() {
@@ -379,7 +523,7 @@ void Game::showGameResult() {
         std::cout << "\n================================\n";
         std::cout << "         GAME OVER\n";
         std::cout << "================================\n";
-        std::cout << "You died in room " << currentRoomIndex << ".\n";
+        std::cout << "You died in room " << (currentRoomIndex + 1) << ".\n";
     }
     ConsoleUI::showPlayerStatus(*player);
     pause();

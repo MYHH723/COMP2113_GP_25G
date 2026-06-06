@@ -3,16 +3,11 @@
 #include "monster.h"
 #include "utils.h"
 #include <iostream>
-#include <random>
 #include <sstream>
-#include <iomanip>
 #include <algorithm>
 #include <string>
 #include <cstdlib>
 #include <cerrno>
-
-// Mersenne Twister random number generator for battle calculations
-static std::mt19937 gen(std::random_device{}());
 
 namespace {
 
@@ -55,7 +50,7 @@ int readBattleChoice14() {
     }
 }
 
-// Flavor text lines for battle actions
+// Flavor text lines for battle actions (medieval; random each round)
 const char* const kLinesAttackAfter[] = {
     "Your steel finds flesh; the beast reels from the blow.",
     "A true strike - honour guides the edge this day.",
@@ -65,6 +60,12 @@ const char* const kLinesAttackAfter[] = {
     "The foe buckles - another verse in the song of war.",
     "Steel meets hide; the dungeon echoes your resolve.",
     "With measured wrath you carve your answer.",
+    "The hall remembers the ring of honest steel.",
+    "You strike as the old chronicles promise - without flinch.",
+    "Blood flees the wound; courage does not.",
+    "A blow worthy of tourney lists, if lists were dug in stone.",
+    "The enemy staggers; even shadows respect a sharp edge.",
+    "Your arm keeps faith with every oath you never spoke aloud.",
 };
 
 const char* const kLinesDefendAfter[] = {
@@ -76,6 +77,12 @@ const char* const kLinesDefendAfter[] = {
     "You yield ground to none; the shield remembers every oath.",
     "A knight's patience outlasts the hammer of fate.",
     "Guard high, spirit higher - the tide breaks on you.",
+    "Like a keep under siege, you stand and endure.",
+    "The blow glances away, humbled by discipline.",
+    "You become wall and ward in one mortal frame.",
+    "Steel scrapes steel; you give no inch unearned.",
+    "Fortune tests your guard - fortune fails.",
+    "Breath steady, shield true; the beast learns patience.",
 };
 
 const char* const kLinesCounterSuccess[] = {
@@ -85,6 +92,10 @@ const char* const kLinesCounterSuccess[] = {
     "Quick as chapel bells at Matins, your counter lands.",
     "A duelist's breath - strike where they least expect.",
     "They lunge; you dance; steel finishes the verse.",
+    "Your answer comes swifter than their regret.",
+    "A textbook riposte - had masters lived to applaud.",
+    "They sought your life and found only your blade.",
+    "The counter bites; hubris bleeds.",
 };
 
 const char* const kLinesCounterFail[] = {
@@ -93,6 +104,10 @@ const char* const kLinesCounterFail[] = {
     "The counter fails; courage alone cannot turn every blade.",
     "Balance lost - a costly lesson in the lists.",
     "Your timing slips; the dungeon claims its due.",
+    "You reach for glory and grasp only air.",
+    "The beast is no fool; it punishes your gamble.",
+    "Steel finds you while your own blade still searches.",
+    "A noble attempt - the graveyard loves those too.",
 };
 
 const char* const kLinesFleeSuccess[] = {
@@ -101,6 +116,11 @@ const char* const kLinesFleeSuccess[] = {
     "Boots on stone; behind you, only echoes and breath.",
     "The corridor swallows you; survival is its own victory.",
     "You quit the field with heart still beating - there will be other songs.",
+    "Better a living coward than a dead hero - so the veterans say.",
+    "You flee, and the stones do not judge.",
+    "The beast roars at your back; your pulse outruns its wrath.",
+    "Retreat is a tactic; the chapel still counts you among the faithful.",
+    "You vanish into torch-smoke like a tale half-remembered.",
 };
 
 const char* const kLinesFleeFail[] = {
@@ -108,13 +128,18 @@ const char* const kLinesFleeFail[] = {
     "Your heel catches; fate insists on one more exchange.",
     "The way is barred; steel demands another reckoning.",
     "No passage yet - the beast will not release you cheaply.",
+    "You turn to run; the foe turns your hope to dust.",
+    "The corridor feels narrower than a coffin.",
+    "Flight falters; the hunter smells fear.",
+    "Your boots slip on old blood - destiny is not merciful.",
+    "No door, no mercy - only another clash of iron.",
 };
 
 // Print random flavor text line from given array
 void printRandomLine(const char* const* lines, size_t count) {
     if (count == 0) return;
-    std::uniform_int_distribution<size_t> pick(0, count - 1);
-    std::cout << "  * " << lines[pick(gen)] << "\n";
+    const size_t idx = static_cast<size_t>(getRandom(0, static_cast<int>(count) - 1));
+    std::cout << "  * " << lines[idx] << "\n";
 }
 
 } // namespace
@@ -211,6 +236,16 @@ BattleResult BattleSystem::executeBattleRound() {
     round_count++;
     battleLog.push_back("--- Round " + std::to_string(round_count) + " ---");
 
+    if (player->get_isPoisoned()) {
+        player->tickPoison();
+        if (!player->get_isAlive()) {
+            battleLog.push_back("Player succumbed to poison!");
+            isBattleActive = false;
+            lastResult = BattleResult::PLAYER_LOSE;
+            return lastResult;
+        }
+    }
+
     std::cout << "\n--- Your turn (Round " << round_count << ") ---\n";
     std::cout << "You: HP " << static_cast<int>(player->get_HP())
               << "  |  " << currentMonster->getName()
@@ -277,8 +312,7 @@ int BattleSystem::playerAttack() {
     }
     
     float playerAtk = player->get_ATK();
-    std::uniform_real_distribution<float> atkDist(0.8f, 1.2f);
-    float damageMultiplier = atkDist(gen);
+    const float damageMultiplier = getRandomFloat(0.8f, 1.2f);
     int baseDamage = static_cast<int>(playerAtk * damageMultiplier);
     
     int monsterDef = currentMonster->getDEF();
@@ -322,11 +356,9 @@ int BattleSystem::monsterAttack(float extraDamageMultiplier) {
         return 0;
     }
     
-    std::uniform_int_distribution<int> damageDist(
+    const int baseDamage = getRandom(
         static_cast<int>(currentMonster->getATK() * 0.8f),
-        static_cast<int>(currentMonster->getATK() * 1.2f)
-    );
-    int baseDamage = damageDist(gen);
+        static_cast<int>(currentMonster->getATK() * 1.2f));
 
     float effectiveDef = player->get_DEF();
     if (playerDefending) {
@@ -363,10 +395,7 @@ bool BattleSystem::playerFlee() {
         return false;
     }
     
-    std::uniform_int_distribution<int> fleeChance(1, 100);
-    int chance = fleeChance(gen);
-    
-    if (chance <= 70) {
+    if (getRandomChance(70)) {
         battleLog.push_back("Player successfully fled!");
         isBattleActive = false;
         lastResult = BattleResult::PLAYER_FLEE;
@@ -403,8 +432,7 @@ bool BattleSystem::playerCounter() {
     if (successRate < 0.08f) successRate = 0.08f;
     if (successRate > 0.65f) successRate = 0.65f;
 
-    std::uniform_real_distribution<float> roll(0.0f, 1.0f);
-    if (roll(gen) <= successRate) {
+    if (getRandomFloat(0.0f, 1.0f) <= successRate) {
         battleLog.push_back("Counter success! No damage taken.");
         playerAttack();
         int bonusGold = std::max(1, static_cast<int>(currentMonster->getGoldReward() * 0.05f));

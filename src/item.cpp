@@ -9,8 +9,6 @@
 // Global database storing all item definitions by ID
 std::unordered_map<int, ItemData> itemDatabase;
 
-// Random number generator for item generation
-static std::mt19937 gen(std::random_device{}());
 std::uniform_int_distribution<> int_dist(0, 30);
 
 // Initialize item database (placeholder for future expansion)

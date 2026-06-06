@@ -1,12 +1,10 @@
 #include "monster.h"
 #include "player.h"
+#include "balance.h"
+#include "utils.h"
 #include <iostream>
-#include <random>
 #include <string>
 #include <cmath>
-
-// Random number generator for monster attack calculations
-static std::mt19937 gen(std::random_device{}());
 
 // Default constructor: Initialize monster attributes to default values
 Monster::Monster() 
@@ -21,46 +19,40 @@ Monster::~Monster() {
 // Initialize monster stats based on game difficulty and level
 void Monster::initMonster(int difficulty, int monsterLevel) {
     level = monsterLevel;
-    
-    // Difficulty multiplier: 0 = Easy, 1 = Normal, 2 = Hard
-    float difficultyMultiplier = 1.0f;
-    switch (difficulty) {
-        case 0: difficultyMultiplier = 0.8f; break;
-        case 1: difficultyMultiplier = 1.0f; break;
-        case 2: difficultyMultiplier = 1.15f; break;
-        default: difficultyMultiplier = 1.0f; break;
-    }
-    
-    // Set monster type and stats based on level
+    (void)difficulty;
+
+    const float hpMult = g_monsterHpMultiplier > 0.0f ? g_monsterHpMultiplier : 1.0f;
+
+    // Set monster type and stats based on level (HP/ATK scaled by g_monsterHpMultiplier)
     if (level <= 2) {
         name = "Goblin";
-        maxHp = static_cast<int>(30 * difficultyMultiplier * (1 + 0.1 * level));
-        atk = static_cast<int>(8 * difficultyMultiplier * (1 + 0.1 * level));
-        def = static_cast<int>(2 * difficultyMultiplier);
+        maxHp = static_cast<int>(30 * hpMult * (1 + 0.1 * level));
+        atk = static_cast<int>(8 * hpMult * (1 + 0.1 * level));
+        def = static_cast<int>(2 * hpMult);
         exp_reward = 10 + level * 5;
         gold_reward = 5 + level * 3;
         score_reward = 1.0f + level * 0.5f;
     } else if (level <= 4) {
         name = "Skeleton Warrior";
-        maxHp = static_cast<int>(40 * difficultyMultiplier * (1 + 0.1 * level));
-        atk = static_cast<int>(10 * difficultyMultiplier * (1 + 0.1 * level));
-        def = static_cast<int>(3 * difficultyMultiplier);
+        maxHp = static_cast<int>(40 * hpMult * (1 + 0.1 * level));
+        atk = static_cast<int>(10 * hpMult * (1 + 0.1 * level));
+        def = static_cast<int>(3 * hpMult);
         exp_reward = 15 + level * 5;
         gold_reward = 8 + level * 3;
         score_reward = 2.0f + level * 1.0f;
     } else if (level <= 6) {
         name = "Dark Mage";
-        maxHp = static_cast<int>(35 * difficultyMultiplier * (1 + 0.1 * level));
-        atk = static_cast<int>(15 * difficultyMultiplier * (1 + 0.1 * level));
-        def = static_cast<int>(1 * difficultyMultiplier);
+        maxHp = static_cast<int>(35 * hpMult * (1 + 0.1 * level));
+        atk = static_cast<int>(15 * hpMult * (1 + 0.1 * level));
+        def = static_cast<int>(1 * hpMult);
         exp_reward = 20 + level * 5;
         gold_reward = 10 + level * 3;
         score_reward = 4.0f + level * 2.0f;
     } else {
         name = "Dungeon Lord";
-        maxHp = static_cast<int>(100 * difficultyMultiplier * (1 + 0.1 * level));
-        atk = static_cast<int>(20 * difficultyMultiplier * (1 + 0.1 * level));
-        def = static_cast<int>(5 * difficultyMultiplier);
+        maxHp = static_cast<int>(100 * hpMult * (1 + 0.1 * level));
+        atk = static_cast<int>(20 * hpMult * (1 + 0.1 * level));
+        def = static_cast<int>(5 * hpMult);
         exp_reward = 50 + level * 10;
         gold_reward = 30 + level * 5;
         score_reward = 8.0f + level * 4.0f;
@@ -105,13 +97,13 @@ void Monster::setDEF(int new_def) {
 // Set monster alive status
 void Monster::set_isAlive(bool alive) { isAlive = alive; }
 
-// Apply damage to monster and check alive status
+// Apply damage to monster (DEF already applied by BattleSystem::playerAttack)
 void Monster::takeDamage(int damage) {
     if (!isAlive) return;
-    
-    int actualDamage = damage - def;
+
+    int actualDamage = damage;
     if (actualDamage < 1) actualDamage = 1;
-    
+
     hp -= actualDamage;
     if (hp < 0) hp = 0;
     
@@ -122,12 +114,9 @@ void Monster::takeDamage(int damage) {
 int Monster::attackPlayer(Player& player) {
     if (!isAlive) return 0;
     
-    // Calculate random damage within 80% - 120% of base attack
-    std::uniform_int_distribution<int> damageDist(
-        static_cast<int>(atk * 0.8), 
-        static_cast<int>(atk * 1.2)
-    );
-    int baseDamage = damageDist(gen);
+    const int baseDamage = getRandom(
+        static_cast<int>(atk * 0.8),
+        static_cast<int>(atk * 1.2));
     
     float playerDef = player.get_DEF();
     int actualDamage = baseDamage - static_cast<int>(playerDef);

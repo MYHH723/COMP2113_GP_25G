@@ -1,8 +1,8 @@
 #include "game.h"
-using namespace std;
+#include "utils.h"
 
-// Main function: Program entry point
 int main() {
+    ensureDataDirectory();
     Game game;
     game.showMainMenu();
     return 0;
