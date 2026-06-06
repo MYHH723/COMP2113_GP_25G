@@ -3,47 +3,36 @@
 
 #include "room.h"
 #include "types.h"
+#include <memory>
 #include <vector>
-#include <string>
 
-// Forward declaration
 class Room;
 
-// MapGenerator class - generates rooms and handles room layout
 class MapGenerator {
 private:
     int totalRooms;
     int difficulty;
-    std::vector<Room*> generatedRooms;
-    int shopFrequency;  // How often shops appear
+    std::vector<std::unique_ptr<Room>> generatedRooms;
+    int shopFrequency;
+
+    RoomType determineRoomType(int roomNumber);
+    std::unique_ptr<Room> buildRoom(int roomId, int roomNumber);
 
 public:
     MapGenerator();
     MapGenerator(int seed);
     ~MapGenerator();
 
-    // Initialization
     void initMapGenerator(int numRooms, int diff);
-
-    // Map/Room generation
     void generateMap();
-    Room* generateRoom(int roomId, int roomNumber);
-    void determineRoomType(Room* room, int roomNumber);
 
-    RoomType determineRoomType(int roomNumber);
-
-    // Getters
-    std::vector<Room*> getGeneratedRooms() const;
+    /** Transfer ownership of generated rooms to the caller (e.g. Game). */
+    std::vector<std::unique_ptr<Room>> releaseRooms();
     int getTotalRooms() const;
     int getDifficulty() const;
     Room* getRoomById(int roomId);
 
-    // Randomization
-    bool shouldHaveShop(int roomNumber);
-    int getRandomMonsterCount(int difficulty);
-    int getRandomTrapCount(int difficulty);
-
-    int countRoomsByType(RoomType type) const;
+    bool shouldHaveShop(int roomNumber) const;
 };
 
 #endif // MAPGENERATOR_H

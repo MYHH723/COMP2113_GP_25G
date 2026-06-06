@@ -16,10 +16,19 @@ void waitForEnter();
 void discardRestOfLine();
 /** If stdin already has buffered characters, discard until newline (safe before `getline`). */
 void discardRestOfLineIfBuffered();
+/** Read a y/n answer (y, Y, or 1 = yes). */
+bool promptYesNo(const char* prompt);
 /** Format a float for display with exactly 2 digits after the decimal point. */
 std::string formatFixed2(float value);
-int getRandom(int min, int max);          // inclusive random int
+void seedGameRandom(unsigned int seed);
+int getRandom(int min, int max);          // inclusive random int (requires seedGameRandom)
+float getRandomFloat(float min, float max); // inclusive-ish float in [min, max]
+bool getRandomChance(int percent);        // true with given percent chance (1-100)
 void printWithDelay(const std::string& text, int ms); // slow print
+
+/** Ensure data/ exists; returns path prefix "data" (run game from project root). */
+bool ensureDataDirectory();
+std::string getSaveFilePath();
 
 /** ASCII art when entering battle vs Goblin / Skeleton Warrior (no-op for other names). */
 void printMonsterEncounterArt(const std::string& monsterName);

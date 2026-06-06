@@ -13,6 +13,9 @@ private:
     // Final generated test report content
     std::string testReport;
 
+    // Failed assertion count from the last runAllTests()
+    int failureCount_ = 0;
+
 public:
     // Default constructor
     GameTester();
@@ -28,6 +31,9 @@ public:
 
     // Generate and output the complete test report
     void generateTestReport();
+
+    // Number of failed assertions from the last runAllTests()
+    int getFailureCount() const { return failureCount_; }
 };
 
 #endif // GAMETESTER_H

@@ -3,6 +3,7 @@
 
 #include "item.h"
 #include "types.h"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -18,10 +19,11 @@ private:
     int roomId;
     int difficulty;
     RoomType roomType;
-    std::vector<Monster *> monsters;
-    std::vector<Trap *> traps;
+    std::vector<std::unique_ptr<Monster>> monsters;
+    std::vector<std::unique_ptr<Trap>> traps;
     bool hasShop;
     bool isCleared;
+    bool goblinNest;
     std::string description;
 
 public:
@@ -41,9 +43,10 @@ public:
     RoomType getRoomType() const;
     int getRoomId() const;
     int getDifficulty() const;
-    std::vector<Monster *> getMonsters() const;
-    std::vector<Trap *> getTraps() const;
+    const std::vector<std::unique_ptr<Monster>>& getMonsters() const;
+    const std::vector<std::unique_ptr<Trap>>& getTraps() const;
     std::string getDescription() const;
+    bool isGoblinNestRoom() const;
 
     // Setters
     void setCleared(bool cleared);

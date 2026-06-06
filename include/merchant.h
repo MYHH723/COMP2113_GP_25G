@@ -10,34 +10,32 @@
 // Merchant class - manages goods display and stock
 class Merchant {
 private:
-    std::map<ItemType, int> goods;  // 3 grades per item type
-    int maxStockPerItem;
+    std::map<ItemType, std::array<int, 3>> goodsByGrade;
     bool isAvailable;
     int currentDiff;
+    int nextItemId;
+
+    void restockGoods(ItemType type, ItemRarity rarity);
 
 public:
     Merchant();
-    Merchant(int gameDiff,int seed);
+    Merchant(int gameDiff, int seed);
     ~Merchant();
 
-    // Initialization
     void initMerchant();
 
-    // Goods management
-    bool hasItem(ItemType type) const;
-    Item getItem(ItemType type);
+    bool hasItem(ItemType type, int grade) const;
+    Item getItem(ItemType type, int grade);
     void showGoodsList() const;
-    void restockGoods(ItemType type);
 
-    // Availability
     bool getIsAvailable() const;
     void setIsAvailable(bool status);
-
-    // Getters
     int getCurrentDiff() const;
 };
 
-// Global constants
 const int MAX_STOCK = 999;
+
+/** Rebuild merchant itemDatabase entries deterministically from game seed. */
+void seedMerchantCatalog(int gameDiff, int seed);
 
 #endif // MERCHANT_H

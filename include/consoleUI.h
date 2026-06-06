@@ -24,6 +24,13 @@ public:
     // Display all items in the player's inventory list
     static void showInventory(const Player &player);
 
+    // Pre-room menu: continue, view/use inventory items (loops until player continues)
+    static void runPreRoomMenu(Player &player, int roomNumber, int totalRooms,
+                               const std::string& welcomeBanner = "");
+
+    // Unequip worn gear back into backpack
+    static void runUnequipMenu(Player &player);
+
     // Display the main menu interface of the game
     static void showMainMenu();
 };

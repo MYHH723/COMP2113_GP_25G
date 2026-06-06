@@ -4,10 +4,10 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <memory>
 #include <string>
 #include <vector>
 
-// Forward declarations of modules implemented by other team members
 class Player;
 class MapGenerator;
 class Room;
@@ -15,53 +15,56 @@ class BattleSystem;
 class Shop;
 
 class Game {
-private:
-    // Game state variables
-    int seed;                // Random seed for map generation
-    int difficulty;          // 0 = Easy, 1 = Normal, 2 = Hard
-    int totalRooms;          // Number of rooms to clear (depends on difficulty)
-    int currentRoomIndex;    // Index of the room the player is in (0-based)
-    bool isRunning;          // True while the game is active
-    bool playerWin;          // True if player cleared all rooms
-    bool pendingNewGameWelcome; // One-line welcome on first gameLoop screen after new game (not load)
-
-    Player* player;          // Player object (dynamically allocated)
-    std::string playerName;   // Name entered by the player
-
-    // Map and rooms
-    MapGenerator* mapGen;    // Generates the dungeon layout
-    std::vector<Room*> rooms; // List of all rooms in the current game
-
-    // Private helper methods
-    void generateRooms();    // Uses MapGenerator to create all rooms
-    void applyDifficultyScaling(); // Sets global modifiers for monsters/traps
-
 public:
     enum class LoadResult {
-        Loaded,            // Success; caller should run game loop
-        Failed,            // Missing/corrupt save (details may already be printed)
-        AlreadyCompleted   // Valid save but game finished; prompt already shown in loadGame
+        Loaded,
+        Failed,
+        AlreadyCompleted
     };
 
-    Game();                  // Constructor
-    ~Game();                 // Destructor (cleans up dynamic memory)
+    enum class RoomCombatResult {
+        Cleared,
+        Lost,
+        Fled,
+        Empty
+    };
 
-    // Menu and initialization
-    void showMainMenu();     // Displays new game, load game, exit
-    void selectDifficulty(); // Lets player choose difficulty
-    void initGame();         // Starts a new game with chosen difficulty
-    void saveGame();         // Saves current progress to data/save.json
-    LoadResult loadGame();   // Loads saved game from data/save.json
+private:
+    int seed;
+    int difficulty;
+    int totalRooms;
+    int currentRoomIndex;
+    bool isRunning;
+    bool playerWin;
+    bool pendingNewGameWelcome;
+
+    std::unique_ptr<Player> player;
+    std::string playerName;
+
+    std::unique_ptr<MapGenerator> mapGen;
+    std::vector<std::unique_ptr<Room>> rooms;
+
+    void generateRooms();
+    void applyDifficultyScaling();
+    bool triggerRoomTraps(Room* room);
+    RoomCombatResult fightRoomMonsters(Room* room);
+
+public:
+    Game();
+    ~Game();
+
+    void showMainMenu();
+    bool selectDifficulty();
+    void initGame();
+    void saveGame(bool verbose = false);
+    LoadResult loadGame();
     void pause();
 
-    // Main game loop
-    void gameLoop();         // Runs the core gameplay
-    void enterNextRoom();    // Enters the next room and processes its event
+    void gameLoop();
+    void enterNextRoom();
 
-    // Game ending
-    void checkGameOver();    // Checks if player died or finished all rooms
-    void showGameResult();   // Shows win / lose screen
-
+    void checkGameOver();
+    void showGameResult();
 };
 
 #endif

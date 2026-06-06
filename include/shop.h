@@ -4,6 +4,7 @@
 #include "item.h"
 #include "types.h"
 #include "merchant.h"
+#include "gamelogger.h"
 #include <string>
 
 // Forward declarations
@@ -19,6 +20,10 @@ private:
     Inventory* inventory;
     bool isShopOpen;
     float sellDiscount;
+    GameLogger transactionLogger;
+    bool transactionLogActive;
+
+    void logTransaction(const std::string& action, ItemType type, int grade, int gold);
 
 public:
     Shop();
